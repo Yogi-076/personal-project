@@ -1,0 +1,35 @@
+{
+  "id": "dee0c9da-4d0a-45c6-9988-fe51a4f49871",
+  "projectId": "VAPT-2026-9601",
+  "target": "http://testphp.vulnweb.com",
+  "type": "wapiti",
+  "status": "completed",
+  "startedAt": "2026-02-26T09:57:05.681Z",
+  "progress": 100,
+  "findings": [],
+  "options": {
+    "fullModules": true
+  },
+  "priority": "medium",
+  "summary": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "logs": [
+    "[3:27:06 pm] Starting security analysis for http://testphp.vulnweb.com",
+    "[3:27:06 pm] Using VAPT Engine binary: D:\\Design_-_Development_VAPT_Framework-main\\Design_-_Development_VAPT_Framework-main\\VAPT Engine-master\\VAPT Engine-master\\bin\\VAPT Engine",
+    "[3:27:06 pm] 🚀 FULL MODULES MODE: Using all modules (-m all,-takeover) — Skipping \"takeover\" to prevent engine hang",
+    "[3:27:06 pm] Executing DAST Scan...",
+    "[3:27:07 pm] Traceback (most recent call last):\r\n  File \"D:\\Design_-_Development_VAPT_Framework-main\\Design_-_Development_VAPT_Framework-main\\VAPT Engine-master\\VAPT Engine-master\\bin\\VAPT Engine\", line 34, in <module>",
+    "[3:27:07 pm] return future.result()\r\n           ^^^^^^^^^^^^^^^\r\n  File \"C:\\Users\\yogi\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\VAPT EngineCore\\main\\VAPT Engine.py\", line 406, in VAPT Engine_main",
+    "[3:27:07 pm] await wap.flush_session()\r\n  File \"C:\\Users\\yogi\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\VAPT EngineCore\\controller\\VAPT Engine.py\", line 489, in flush_session",
+    "[3:27:07 pm] os.unlink(self._history_file)\r\nPermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\yogi\\\\.VAPT Engine\\\\scans\\\\testphp.vulnweb.com_domain_a3961d28.db'",
+    "[3:27:09 pm] ⚠️ Warning: Engine cache locked by OS. Parsing live feed instead."
+  ],
+  "savedAt": "2026-02-26T09:57:05.689Z",
+  "completedAt": "2026-02-26T09:57:09.523Z"
+}

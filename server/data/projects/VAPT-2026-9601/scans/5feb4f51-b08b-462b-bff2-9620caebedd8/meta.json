@@ -1,0 +1,24 @@
+{
+  "id": "5feb4f51-b08b-462b-bff2-9620caebedd8",
+  "projectId": "VAPT-2026-9601",
+  "target": "http://testphp.vulnweb.com",
+  "type": "wapiti",
+  "status": "pending",
+  "startedAt": "2026-02-26T09:59:11.639Z",
+  "progress": 0,
+  "options": {
+    "fullModules": true
+  },
+  "priority": "medium",
+  "logs": [
+    "[3:29:13 pm] Starting security analysis for http://testphp.vulnweb.com",
+    "[3:29:13 pm] Using VAPT Engine binary: D:\\Design_-_Development_VAPT_Framework-main\\Design_-_Development_VAPT_Framework-main\\VAPT Engine-master\\VAPT Engine-master\\bin\\VAPT Engine",
+    "[3:29:13 pm] 🚀 FULL MODULES MODE: Using all modules (-m all,-takeover) — Skipping \"takeover\" to prevent engine hang",
+    "[3:29:13 pm] Executing DAST Scan...",
+    "[3:29:14 pm] [*] Resuming scan from previous session, please wait",
+    "[3:29:14 pm] [*] Saving scan state, please wait...\r\nThis scan has been saved in the file C:\\Users\\yogi\\.VAPT Engine\\scans\\testphp.vulnweb.com_domain_a3961d28.db",
+    "[3:29:14 pm] [*] VAPT Engine found 75 URLs and forms during the scan",
+    "[3:29:15 pm] [*] Launching module backup"
+  ],
+  "savedAt": "2026-02-26T09:59:11.650Z"
+}

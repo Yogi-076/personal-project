@@ -1,0 +1,24 @@
+{
+  "id": "dee0c9da-4d0a-45c6-9988-fe51a4f49871",
+  "projectId": "VAPT-2026-9601",
+  "target": "http://testphp.vulnweb.com",
+  "type": "wapiti",
+  "status": "pending",
+  "startedAt": "2026-02-26T09:57:05.681Z",
+  "progress": 0,
+  "findings": [],
+  "options": {
+    "fullModules": true
+  },
+  "priority": "medium",
+  "summary": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "logs": [],
+  "savedAt": "2026-02-26T09:57:05.689Z"
+}

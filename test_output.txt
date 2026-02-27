@@ -1,0 +1,72 @@
+node : file:///D:/cod
+ing/VAPT%20Framework/
+lovable-security-fram
+ework-main/test/test-
+swarm.js:1
+At line:1 char:1
++ node 
+test/test-swarm.js 
+2>&1 | Out-File 
+-Encoding ASCII 
+test_output.t ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (file://   
+ /D:/codi...test-    
+swarm.js:1:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+const 
+AIHunterService = req
+uire('../server/servi
+ces/aiHunterService')
+;
+                     
+   ^
+
+ReferenceError: 
+require is not 
+defined in ES module 
+scope, you can use 
+import instead
+This file is being 
+treated as an ES 
+module because it 
+has a '.js' file 
+extension and 
+'D:\coding\VAPT Frame
+work\lovable-security
+-framework-main\packa
+ge.json' contains 
+"type": "module". To 
+treat it as a 
+CommonJS script, 
+rename it to use the 
+'.cjs' file 
+extension.
+    at file:///D:/cod
+ing/VAPT%20Framework/
+lovable-security-fram
+ework-main/test/test-
+swarm.js:1:25
+    at ModuleJob.run 
+(node:internal/module
+s/esm/module_job:343:
+25)
+    at async onImport
+.tracePromise.__proto
+__ (node:internal/mod
+ules/esm/loader:647:2
+6)
+    at async asyncRun
+EntryPointWithESMLoad
+er (node:internal/mod
+ules/run_main:117:5)
+
+Node.js v22.18.0

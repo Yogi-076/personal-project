@@ -1,0 +1,22 @@
+{
+    "gateway": {
+        "mode": "local",
+        "http": {
+            "endpoints": {
+                "chatCompletions": {
+                    "enabled": true
+                }
+            }
+        }
+    },
+    "agents": {
+        "list": [
+            {
+                "id": "main",
+                "default": true,
+                "name": "VAPT Assistant",
+                "model": "google/gemini-2.0-flash"
+            }
+        ]
+    }
+}

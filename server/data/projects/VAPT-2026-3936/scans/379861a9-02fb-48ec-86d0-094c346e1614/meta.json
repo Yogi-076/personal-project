@@ -1,0 +1,17 @@
+{
+  "id": "379861a9-02fb-48ec-86d0-094c346e1614",
+  "projectId": "VAPT-2026-3936",
+  "target": "http://testphp.vulnweb.com/login.php",
+  "type": "wapiti",
+  "status": "failed",
+  "startedAt": "2026-02-26T07:15:35.312Z",
+  "progress": 0,
+  "options": {
+    "wafBypass": false,
+    "fullModules": true
+  },
+  "priority": "medium",
+  "logs": [],
+  "savedAt": "2026-02-26T07:15:35.323Z",
+  "error": "Security engine timed out during analysis."
+}

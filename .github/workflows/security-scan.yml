@@ -1,0 +1,53 @@
+name: Security Pipeline (SAST + DAST)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  # JOB 1: SAST (Source Code Scan) using Semgrep
+  # Scans your code for vulnerabilities like hardcoded secrets, dangerous functions, etc.
+  semgrep-sast:
+    name: Semgrep SAST Scan
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep
+        run: semgrep scan --config=auto --sarif --output=semgrep-results.sarif
+        continue-on-error: true
+      
+      # Optional: Upload results to GitHub Security Tab (if repo is public)
+      - name: Upload Semgrep Report
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        if: always()
+        with:
+          sarif_file: semgrep-results.sarif
+
+  # JOB 2: DAST (Live Site Scan) using OWASP ZAP
+  # ATTENTION: Only run this on a STAGING environment, never production.
+  zap-dast:
+    name: OWASP ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    needs: semgrep-sast # Runs only after SAST finishes
+    steps:
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        continue-on-error: true
+        with:
+          # REPLACE THIS URL with your staging website URL
+          target: 'https://vapt-framework1-git-main-yogis-projects-45fae8d8.vercel.app'
+          cmd_options: '-a'
+          fail_action: false

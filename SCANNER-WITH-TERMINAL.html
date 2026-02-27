@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAPT Scanner - Wapiti Embedded</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4ecca3;
+        }
+
+        .scanner-box {
+            background: rgba(15, 52, 96, 0.3);
+            border: 2px solid #0f3460;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 70%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #0f3460;
+            border-radius: 5px;
+            background: #16213e;
+            color: white;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            background: #4ecca3;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #3db88f;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        /* Terminal */
+        .terminal {
+            background: #000;
+            border: 2px solid #4ecca3;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .terminal.active {
+            display: block;
+        }
+
+        .terminal-line {
+            color: #4ecca3;
+            margin-bottom: 5px;
+        }
+
+        .terminal-cursor {
+            display: inline-block;
+            width: 10px;
+            height: 16px;
+            background: #4ecca3;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            49% {
+                opacity: 1;
+            }
+
+            50%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        /* Results */
+        .results {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .vuln-card {
+            background: rgba(22, 33, 62, 0.8);
+            border-left: 4px solid #ff5252;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .vuln-card.high {
+            border-left-color: #ff5252;
+        }
+
+        .vuln-card.medium {
+            border-left-color: #ffbb33;
+        }
+
+        .vuln-card.low {
+            border-left-color: #4ecca3;
+        }
+
+        .vuln-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .vuln-detail {
+            font-size: 13px;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🛡️ VAPT Security Scanner</h1>
+        <p style="text-align: center; margin-bottom: 30px; color: #4ecca3;">
+            Powered by Advanced Vulnerability Detection Engine
+        </p>
+
+        <div class="scanner-box">
+            <h2 style="margin-bottom: 20px;">Start Security Scan</h2>
+            <input type="text" id="targetUrl" placeholder="https://example.com" value="http://testphp.vulnweb.com">
+            <button onclick="startScan()" id="scanBtn">🚀 Start Scan</button>
+        </div>
+
+        <div id="terminal" class="terminal">
+            <div id="terminalContent"></div>
+            <span class="terminal-cursor"></span>
+        </div>
+
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let currentScanId = null;
+        let pollInterval = null;
+
+        function addTerminalLine(text) {
+            const terminal = document.getElementById('terminalContent');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            terminal.appendChild(line);
+            document.getElementById('terminal').scrollTop = 999999;
+        }
+
+        async function startScan() {
+            const url = document.getElementById('targetUrl').value;
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+
+            // Reset
+            document.getElementById('terminal').classList.add('active');
+            document.getElementById('terminal').innerHTML = '<div id="terminalContent"></div><span class="terminal-cursor"></span>';
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('scanBtn').disabled = true;
+
+            addTerminalLine('🔒 VAPT Security Scanner Initiated');
+            addTerminalLine(`📡 Target: ${url}`);
+            addTerminalLine('🚀 Connecting to backend API...');
+
+            try {
+                const response = await fetch(`${API_BASE}/scan/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: url })
+                });
+
+                if (!response.ok) throw new Error('Backend not running');
+
+                const { scanId } = await response.json();
+                currentScanId = scanId;
+
+                addTerminalLine(`✅ Backend API Connected!`);
+                addTerminalLine(`🆔 Scan ID: ${scanId}`);
+                addTerminalLine('');
+                addTerminalLine('⚙️  LAUNCHING WAPITI SCANNER...');
+                addTerminalLine(`📂 Executing: C:\\Users\\yogi\\...\\wapiti.exe -u ${url}`);
+                addTerminalLine('🔍 Scanner Process: RUNNING');
+                addTerminalLine('⏳ Please wait while Wapiti analyzes your target...');
+                addTerminalLine('');
+
+                // Poll for updates
+                pollInterval = setInterval(checkScanStatus, 2000);
+
+            } catch (error) {
+                addTerminalLine(`❌ ERROR: ${error.message}`);
+                addTerminalLine('⚠️  Make sure backend is running: node server/index.js');
+                document.getElementById('scanBtn').disabled = false;
+            }
+        }
+
+        async function checkScanStatus() {
+            if (!currentScanId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/scan/status/${currentScanId}`);
+                const data = await response.json();
+
+                const progress = data.progress || 0;
+                if (progress >= 25 && !window.logged25) {
+                    addTerminalLine('📊 25% - Wapiti is crawling the website...');
+                    window.logged25 = true;
+                }
+                if (progress >= 50 && !window.logged50) {
+                    addTerminalLine('🔎 50% - Testing for SQL injection, XSS, etc...');
+                    window.logged50 = true;
+                }
+                if (progress >= 75 && !window.logged75) {
+                    addTerminalLine('⚡ 75% - Running advanced security modules...');
+                    window.logged75 = true;
+                }
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    addTerminalLine('');
+                    addTerminalLine('✅ 100% - SCAN COMPLETED!');
+                    addTerminalLine('📝 Generating professional security report...');
+
+                    // Fetch results
+                    const resultsResponse = await fetch(`${API_BASE}/scan/results/${currentScanId}`);
+                    const resultsData = await resultsResponse.json();
+
+                    addTerminalLine(`🎯 Found ${resultsData.summary.total} vulnerabilities!`);
+                    addTerminalLine(`   - Critical: ${resultsData.summary.critical}`);
+                    addTerminalLine(`   - High: ${resultsData.summary.high}`);
+                    addTerminalLine(`   - Medium: ${resultsData.summary.medium}`);
+                    addTerminalLine(`   - Low: ${resultsData.summary.low}`);
+                    addTerminalLine('');
+                    addTerminalLine('✅ WAPITI SCAN COMPLETE! Scroll down for detailed report.');
+
+                    // Display results
+                    displayResults(resultsData);
+                    document.getElementById('scanBtn').disabled = false;
+                    window.logged25 = false;
+                    window.logged50 = false;
+                    window.logged75 = false;
+                }
+
+            } catch (error) {
+                clearInterval(pollInterval);
+                addTerminalLine(`❌ ERROR: ${error.message}`);
+                document.getElementById('scanBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.classList.add('active');
+
+            let html = `<h2 style="margin-bottom: 20px;">🔒 Security Assessment Report</h2>`;
+            html += `<p style="margin-bottom: 20px;">Target: ${data.target}</p>`;
+            html += `<p style="margin-bottom: 20px;">Total Vulnerabilities: <strong>${data.summary.total}</strong></p>`;
+
+            if (data.findings && data.findings.length > 0) {
+                data.findings.forEach(vuln => {
+                    html += `
+                        <div class="vuln-card ${vuln.severity}">
+                            <div class="vuln-title">
+                                ${vuln.severity.toUpperCase()}: ${vuln.type}
+                            </div>
+                            <div class="vuln-detail">URL: ${vuln.url}</div>
+                            <div class="vuln-detail">Evidence: ${vuln.evidence}</div>
+                            <div class="vuln-detail">CVSS Score: ${vuln.cvssScore.toFixed(2)}</div>
+                            <div class="vuln-detail" style="margin-top: 10px;">${vuln.remediation}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `<p>✅ No vulnerabilities found!</p>`;
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+
+</html>

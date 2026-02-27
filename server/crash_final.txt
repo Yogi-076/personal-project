@@ -1,0 +1,23 @@
+[dotenv@17.2.3] injecting env (7) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[Supabase] Missing keys. initializing Mock Client.
+[Storage] Initialized with Supabase Backend
+Server running on port 3001
+Test with: curl http://localhost:3001/api/health
+D:\coding\VAPT Framework\lovable-security-framework-main\server\index.js:29
+    const { target } = req.body;
+            ^
+
+TypeError: Cannot destructure property 'target' of 'req.body' as it is undefined.
+    at D:\coding\VAPT Framework\lovable-security-framework-main\server\index.js:29:13
+    at Layer.handle [as handle_request] (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\layer.js:95:5)
+    at next (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\route.js:149:13)
+    at Route.dispatch (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\route.js:119:3)
+    at Layer.handle [as handle_request] (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\layer.js:95:5)
+    at D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\index.js:284:15
+    at Function.process_params (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\index.js:346:12)
+    at next (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\middleware\init.js:40:5)
+    at Layer.handle [as handle_request] (D:\coding\VAPT Framework\lovable-security-framework-main\server\node_modules\express\lib\router\layer.js:95:5)
+
+Node.js v22.18.0

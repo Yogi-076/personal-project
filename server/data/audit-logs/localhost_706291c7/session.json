@@ -1,0 +1,7 @@
+{
+  "scanId": "706291c7",
+  "target": "http://localhost:3001/api/health",
+  "hostname": "localhost",
+  "startedAt": "2026-02-14T07:13:53.623Z",
+  "status": "running"
+}

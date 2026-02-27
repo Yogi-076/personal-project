@@ -1,0 +1,25 @@
+{
+  "id": "4d0020ac-0ce0-4e4f-8402-666f84fe7d13",
+  "projectId": "VAPT-2026-9601",
+  "target": "http://testphp.vulnweb.com",
+  "type": "wapiti",
+  "status": "failed",
+  "startedAt": "2026-02-26T09:54:48.430Z",
+  "progress": 0,
+  "findings": [],
+  "options": {
+    "fullModules": true
+  },
+  "priority": "medium",
+  "summary": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "logs": [],
+  "savedAt": "2026-02-26T09:54:48.442Z",
+  "error": "Scan failed: PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\\\Users\\\\yogi\\\\.wapiti\\\\scans\\\\testphp.vulnweb.com_domain_a3961d28.db'\r"
+}

@@ -1,0 +1,8 @@
+[DEBUG] Locating A2UI. Candidates: [
+  "C:\\Program Files\\nodejs\\a2ui",
+  "D:\\coding\\VAPT Framework\\moltbot\\dist\\canvas-host\\a2ui",
+  "D:\\coding\\VAPT Framework\\moltbot\\src\\canvas-host\\a2ui",
+  "D:\\coding\\VAPT Framework\\moltbot\\src\\canvas-host\\a2ui",
+  "D:\\coding\\VAPT Framework\\moltbot\\dist\\canvas-host\\a2ui"
+]
+[DEBUG] Resolved A2UI Root: D:\coding\VAPT Framework\moltbot\src\canvas-host\a2ui

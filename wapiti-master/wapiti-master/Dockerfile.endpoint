@@ -1,0 +1,12 @@
+FROM php:8.4-apache
+
+RUN a2enmod rewrite
+
+RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' \
+    /etc/apache2/apache2.conf
+
+COPY ./endpoint/ /var/www/html/
+COPY ./endpoint/.htaccess /var/www/html/.htaccess
+
+RUN chmod 777 /var/www/html/ssrf_data
+RUN chmod 777 /var/www/html/xxe_data

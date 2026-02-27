@@ -1,0 +1,7 @@
+{"timestamp":"2026-02-06T12:23:34+05:30","url":"https://www.genxdual.com/.env","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-06T12:23:34+05:30","url":"https://www.genxdual.com/.git/HEAD","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-06T12:23:34+05:30","url":"https://www.genxdual.com/.svn/entries","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-06T12:23:36+05:30","url":"https://www.genxdual.com/assets","status":301,"content_type":"text/html","length":795,"redirect":"https://www.genxdual.com/assets/"}
+{"timestamp":"2026-02-06T12:23:50+05:30","url":"https://www.genxdual.com/robots.txt","status":200,"content_type":"text/plain","length":174}
+{"timestamp":"2026-02-06T12:23:58+05:30","url":"https://www.genxdual.com/.htaccess","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-06T12:24:00+05:30","url":"https://www.genxdual.com/.well-known","status":301,"content_type":"text/html","length":795,"redirect":"https://www.genxdual.com/.well-known/"}

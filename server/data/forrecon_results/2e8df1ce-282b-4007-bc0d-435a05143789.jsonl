@@ -1,0 +1,4 @@
+{"timestamp":"2026-02-05T22:10:26+05:30","url":"https://www.genxdual.com/.env","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-05T22:10:31+05:30","url":"https://www.genxdual.com/.git/HEAD","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-05T22:10:36+05:30","url":"https://www.genxdual.com/.svn/entries","status":403,"content_type":"text/html","length":1242}
+{"timestamp":"2026-02-05T22:10:59+05:30","url":"https://www.genxdual.com/assets","status":301,"content_type":"text/html","length":795,"redirect":"https://www.genxdual.com/assets/"}

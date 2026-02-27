@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools", "wheel", "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wapiti3"
+version = "3.2.10"
+description = "A web application vulnerability scanner"
+readme  = "README.rst"
+requires-python = ">=3.12,<3.15"
+authors = [
+        {name="Nicolas Surribas", email="nicolas.surribas@gmail.com"},
+]
+license = {file = "LICENSE"}
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Environment :: Console",
+        "Intended Audience :: End Users/Desktop",
+        "Intended Audience :: Developers",
+        "Intended Audience :: System Administrators",
+        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+        "Natural Language :: English",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: POSIX",
+        "Operating System :: Unix",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Topic :: Security",
+        "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+        "Topic :: Software Development :: Testing"
+]
+dependencies = [
+    "aiosqlite>=0.19,<0.22.0",
+    "playwright>=1.42,<2.0",
+    "beautifulsoup4>=4.12,<5.0",
+    "browser-cookie3>=0.19,<0.21",
+    "dnspython>=2.6,<3.0",
+    "httpcore>=1.0,<2.0",
+    "httpx[brotli,socks]>=0.27,<1.0",
+    "httpx-ntlm>=1.4,<2.0",
+    "mako>=1.2,<2.0",
+    "mitmproxy>=12.0,<13.0",
+    "packaging>=23.0,<26.0",
+    "sqlalchemy>=2.0,<3.0",
+    "tld>=0.13,<0.14",
+    "wapiti-swagger>=0.1.9,<0.2.0",
+]
+
+[project.urls]
+homepage = "https://wapiti-scanner.github.io/"
+repository = "https://github.com/wapiti-scanner/wapiti"
+
+[project.scripts]
+wapiti = "wapitiCore.main.wapiti:wapiti_asyncio_wrapper"
+wapiti-getcookie = "wapitiCore.main.getcookie:getcookie_asyncio_wrapper"
+wapiti-install-headless-browser = "wapitiCore.main.headless:install_browser"
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0,<9.0",
+  "pytest-cov>=4.1,<5.0",
+  "pytest-asyncio>=0.23,<1.0",
+  "respx>=0.22,<1.0",
+]
+
+dev = [
+  "build",
+  "wheel",
+  "pylint>=3.2,<4.0",
+  "pytest>=8.0,<9.0",
+  "pytest-cov>=4.1,<5.0",
+  "pytest-asyncio>=0.23,<1.0",
+  "respx>=0.22,<1.0",
+  "humanize>=4.5,<5.0",
+]
+
+[tool.setuptools.packages]
+find = {exclude=["tests*"]}
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+addopts = "--cov --cov-report=xml"
+
+[tool.coverage.run]
+source = ["wapitiCore"]
+
+[tool.coverage.report]
+show_missing = true

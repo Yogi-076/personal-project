@@ -1,0 +1,49 @@
+{
+    "name": "vapt-framework-server",
+    "version": "1.0.0",
+    "description": "Backend API server for VAPT Framework Security Scanner",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon --ignore data/ index.js"
+    },
+    "keywords": [
+        "security",
+        "scanner",
+        "penetration-testing",
+        "vulnerability-assessment"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@eslint/js": "^9.39.2",
+        "@google/generative-ai": "^0.24.1",
+        "@supabase/supabase-js": "^2.95.2",
+        "axios": "^1.13.3",
+        "body-parser": "^1.20.4",
+        "cors": "^2.8.6",
+        "dotenv": "^17.2.3",
+        "eslint": "^9.39.2",
+        "eslint-plugin-security": "^3.0.1",
+        "express": "^4.22.1",
+        "helmet": "^8.1.0",
+        "imurmurhash": "^0.1.4",
+        "json-logic-js": "^2.0.5",
+        "markdown-it": "^14.1.1",
+        "markdown-pdf": "^11.0.0",
+        "pdfkit": "^0.17.2",
+        "pdfkit-table": "^0.1.99",
+        "playwright": "^1.58.2",
+        "playwright-extra": "^4.3.6",
+        "puppeteer": "^24.36.0",
+        "puppeteer-extra-plugin-stealth": "^2.11.2",
+        "retire": "^5.4.2",
+        "socket.io": "^4.8.3",
+        "socks-proxy-agent": "^8.0.4",
+        "uuid": "^9.0.1",
+        "wappalyzer": "^6.10.66"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    }
+}

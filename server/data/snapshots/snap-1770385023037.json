@@ -1,0 +1,19 @@
+{
+  "id": "snap-1770385023037",
+  "projectId": "manual-project-default",
+  "name": "Report-2026-02-06",
+  "data": [
+    {
+      "id": "ab7b7830-5452-46ba-b778-7224f2108a9b",
+      "endpoint": "fgfg",
+      "issue_name": "fgfg",
+      "severity": "Info",
+      "status": "Open",
+      "issue_summary": "fgfg",
+      "mitigation": "fgfg",
+      "project_id": "manual-project-default",
+      "created_at": "2026-02-06T13:36:30.646Z"
+    }
+  ],
+  "createdAt": "2026-02-06T13:37:03.038Z"
+}

@@ -1,0 +1,4 @@
+
+You can use the **"Sign Up"** tab to create a new account with any email/password.
+
+Alternatively, I have added a **"INITIATE_DEV_ACCESS_PROTOCOL"** button below the login form. Click it to bypass authentication and access the dashboard immediately.

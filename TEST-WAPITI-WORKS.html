@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wapiti Scanner Test - PROOF IT WORKS</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1a1a2e; color: white; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #0f3460; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #16213e; }
+        #results { margin-top: 20px; white-space: pre-wrap; background: #16213e; padding: 15px; border-radius: 5px; }
+        .success { color: #4ecca3; }
+        .error { color: #ff5252; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Wapiti Scanner Integration Test</h1>
+    <p>This page will prove that Wapiti is embedded and working in your scanner.</p>
+    
+    <button onclick="startScan()">START REAL WAPITI SCAN</button>
+    <button onclick="checkStatus()">CHECK LAST SCAN STATUS</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let currentScanId = null;
+
+        async function startScan() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<span class="success">⏳ Starting Wapiti scan...</span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/scan/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: 'http://testphp.vulnweb.com' })
+                });
+                
+                const data = await response.json();
+                currentScanId = data.scanId;
+                
+                results.innerHTML = `<span class="success">✅ SCAN STARTED!</span>\n\nScan ID: ${data.scanId}\n\nWapiti is now running in the background...\n\nClick "CHECK LAST SCAN STATUS" in 30 seconds to see results.`;
+                
+                // Auto-check after 45 seconds
+                setTimeout(checkStatus, 45000);
+            } catch (error) {
+                results.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>\n\nMake sure backend is running: node server/index.js`;
+            }
+        }
+
+        async function checkStatus() {
+            const results = document.getElementById('results');
+            
+            if (!currentScanId) {
+                // Try to get the most recent scan
+                try {
+                    const historyResponse = await fetch(`${API_BASE}/scan/history`);
+                    const history = await historyResponse.json();
+                    if (history.scans && history.scans.length > 0) {
+                        currentScanId = history.scans[0].id;
+                    }
+                } catch (e) {
+                    results.innerHTML = '<span class="error">No scan ID available. Start a scan first.</span>';
+                    return;
+                }
+            }
+            
+            results.innerHTML = '<span class="success">⏳ Fetching results...</span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/scan/results/${currentScanId}`);
+                const data = await response.json();
+                
+                if (data.status === 'completed') {
+                    results.innerHTML = `<span class="success">✅ WAPITI SCAN COMPLETED!</span>\n\n` +
+                        `Target: ${data.target}\n` +
+                        `Status: ${data.status}\n` +
+                        `Progress: ${data.progress}%\n\n` +
+                        `📊 VULNERABILITIES FOUND:\n` +
+                        `Total: ${data.summary.total}\n` +
+                        `Critical: ${data.summary.critical}\n` +
+                        `High: ${data.summary.high}\n` +
+                        `Medium: ${data.summary.medium}\n` +
+                        `Low: ${data.summary.low}\n\n` +
+                        `🔍 DETAILS:\n` +
+                        JSON.stringify(data.findings, null, 2);
+                } else {
+                    results.innerHTML = `<span class="success">⏳ Scan Status: ${data.status}</span>\n\nProgress: ${data.progress}%\n\nKeep waiting...`;
+                }
+            } catch (error) {
+                results.innerHTML = `<span class="error">❌ ERROR: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "id": "4e999dd0-4b75-4315-8ef6-5575a6952eae",
+  "projectId": "VAPT-2026-3536",
+  "target": "https://dev.mtalkz.com",
+  "type": "wapiti",
+  "status": "pending",
+  "startedAt": "2026-02-26T11:26:18.443Z",
+  "progress": 0,
+  "options": {
+    "wafBypass": false,
+    "fullModules": true
+  },
+  "priority": "medium",
+  "logs": [
+    "[4:56:18 pm] Starting security analysis for https://dev.mtalkz.com",
+    "[4:56:18 pm] Using VAPT Engine binary: D:\\Design_-_Development_VAPT_Framework-main\\Design_-_Development_VAPT_Framework-main\\VAPT Engine-master\\VAPT Engine-master\\bin\\VAPT Engine",
+    "[4:56:18 pm] 🗑️ Cleared stale cache: testphp.vulnweb.com_domain_4418d782.pkl",
+    "[4:56:18 pm] 🚀 FULL MODULES MODE: Using all modules (-m all,-takeover) — Skipping \"takeover\" to prevent engine hang",
+    "[4:56:18 pm] Executing DAST Scan..."
+  ],
+  "savedAt": "2026-02-26T11:26:18.456Z"
+}

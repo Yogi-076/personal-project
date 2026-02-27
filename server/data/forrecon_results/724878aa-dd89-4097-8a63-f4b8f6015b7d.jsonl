@@ -1,0 +1,4 @@
+{"timestamp":"2026-02-05T15:01:31+05:30","url":"http://testphp.vulnweb.com/login.php/admin/login.php","status":200,"content_type":"text/html; charset=UTF-8","length":5523}
+{"timestamp":"2026-02-05T15:01:38+05:30","url":"http://testphp.vulnweb.com/login.php/config.php","status":200,"content_type":"text/html; charset=UTF-8","length":5523}
+{"timestamp":"2026-02-05T15:01:50+05:30","url":"http://testphp.vulnweb.com/login.php/index.php","status":200,"content_type":"text/html; charset=UTF-8","length":5523}
+{"timestamp":"2026-02-05T15:02:25+05:30","url":"http://testphp.vulnweb.com/login.php/wp-config.php","status":200,"content_type":"text/html; charset=UTF-8","length":5523}

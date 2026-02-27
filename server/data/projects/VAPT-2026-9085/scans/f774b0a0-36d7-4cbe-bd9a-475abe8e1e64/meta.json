@@ -1,0 +1,27 @@
+{
+  "id": "f774b0a0-36d7-4cbe-bd9a-475abe8e1e64",
+  "projectId": "VAPT-2026-9085",
+  "target": "http://example.com",
+  "type": "wapiti",
+  "status": "pending",
+  "startedAt": "2026-02-26T06:27:21.944Z",
+  "progress": 0,
+  "options": {
+    "fullModules": true
+  },
+  "priority": "medium",
+  "logs": [
+    "[11:57:22 am] Executing DAST Scan...",
+    "[11:57:26 am] CSP is not set for URL: http://example.com/",
+    "[11:57:26 am] Host example.com serves HTTP content without redirecting to HTTPS.",
+    "[11:57:26 am] X-Frame-Options is not set on http://example.com/",
+    "[11:57:26 am] X-Content-Type-Options is not set on http://example.com/",
+    "[11:57:27 am] [*] Saving scan state, please wait...",
+    "[11:57:27 am] This scan has been saved in the file C:\\Users\\yogi\\.VAPT Engine\\scans\\example.com_domain_2a1b4024.db",
+    "[11:57:27 am] [*] VAPT Engine found 1 URLs and forms during the scan",
+    "[11:57:29 am] [*] Launching module backup",
+    "[11:57:29 am] [*] Launching module brute_login_form",
+    "[11:57:29 am] [*] Launching module buster"
+  ],
+  "savedAt": "2026-02-26T06:27:21.959Z"
+}

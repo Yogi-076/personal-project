@@ -1,0 +1,17 @@
+{
+  "id": "f6188fa8-ae4a-4557-8005-9361152c5657",
+  "projectId": "VAPT-2026-9601",
+  "target": "https://juice-shop.herokuapp.com/#/",
+  "type": "wapiti",
+  "status": "failed",
+  "startedAt": "2026-02-26T07:06:58.947Z",
+  "progress": 0,
+  "options": {
+    "wafBypass": false,
+    "fullModules": true
+  },
+  "priority": "medium",
+  "logs": [],
+  "savedAt": "2026-02-26T07:06:58.960Z",
+  "error": "Scan failed: (Background on this error at: https://sqlalche.me/e/14/e3q8)\r"
+}

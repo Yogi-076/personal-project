@@ -1,0 +1,25 @@
+﻿[dotenv@17.2.3] injecting env (7) from .env -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+node : [Supabase] 
+Missing keys. 
+initializing Mock 
+Client.
+At line:1 char:1
++ node index.js > 
+debug_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: ([Supaba   
+ se] Miss...ng Mo    
+ck Client.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+[Storage] Initialized with Supabase Backend
+Server running on port 3001
+Test with: curl http://localhost:3001/api/health

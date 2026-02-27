@@ -1,0 +1,55 @@
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+### VS Code ###
+.vscode/
+
+### Pycharm ###
+.idea/
+
+### coverage ###
+.coverage
+coverage.xml
+
+### integration test system ###
+tests/integration/.dump_diff_file.txt
+tests/integration/.docker-compose.final.yml
+tests/integration/.test/
+tests/integration/wapiti/behavior.json

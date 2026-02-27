@@ -1,0 +1,4 @@
+{"timestamp":"2026-02-25T16:19:52+05:30","url":"http://testphp.vulnweb.com/admin","status":301,"content_type":"text/html","length":169,"redirect":"http://testphp.vulnweb.com/admin/"}
+{"timestamp":"2026-02-25T16:20:06+05:30","url":"http://testphp.vulnweb.com/images","status":301,"content_type":"text/html","length":169,"redirect":"http://testphp.vulnweb.com/images/"}
+{"timestamp":"2026-02-25T16:20:09+05:30","url":"http://testphp.vulnweb.com/index.php","status":200,"content_type":"text/html; charset=UTF-8","length":4958}
+{"timestamp":"2026-02-25T16:20:40+05:30","url":"http://testphp.vulnweb.com/vendor","status":301,"content_type":"text/html","length":169,"redirect":"http://testphp.vulnweb.com/vendor/"}
