@@ -290,8 +290,11 @@ class Html:
         try:
             # TODO: httpx.URL is interesting, reuse that
             self._fld = get_fld(url)
-        except TldDomainNotFound:
-            self._fld = urlparse(url).netloc
+        except (TldDomainNotFound, TldBadUrl, ValueError):
+            try:
+                self._fld = urlparse(url).netloc
+            except ValueError:
+                self._fld = ""
 
         base_tag = self._soup.find("base", href=True)
         if base_tag:
@@ -416,9 +419,12 @@ class Html:
         """
         try:
             fld = get_fld(url)
-        except TldDomainNotFound:
+        except (TldDomainNotFound, ValueError):
             # Not yet known TLD or IP address or local hostname
-            fld = urlparse(url).netloc
+            try:
+                fld = urlparse(url).netloc
+            except ValueError:
+                fld = None
         except TldBadUrl:
             fld = None
         return fld != self._fld

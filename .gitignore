@@ -61,3 +61,28 @@ server/test_server_utf8.log
 # Generated scan / arsenal output directories
 arsenal_output/
 arsenal-core/arsenal_output/
+
+# Large binary executables & tools (exceed GitHub 100MB limit)
+arsenal-core/bin/
+arsenal-core/**/*.exe
+arsenal-core/**/*.bin
+arsenal-core/**/*.dll
+arsenal-core/**/*.so
+
+# Generated PDFs and documentation blobs
+*.pdf
+*.pdf.bak
+
+# Diff / analysis artifacts
+recent_diff.txt
+arsenal_diff.txt
+key_files_diff.txt
+commit_stat.txt
+
+# Temp test files
+temp_report.json
+temp_help.txt
+test_output_abs.json
+crawler.txt
+crawler_f.txt
+pcheck.txt

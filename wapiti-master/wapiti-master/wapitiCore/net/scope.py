@@ -22,19 +22,34 @@ from typing import Iterable, Union, Set
 from urllib.parse import urlparse
 
 from tld import get_fld
-from tld.exceptions import TldDomainNotFound
+from tld.exceptions import TldDomainNotFound, TldBadUrl
 
 from wapitiCore.net import Request
 
 
 def is_same_domain(url: str, request: Request) -> bool:
-    url_parts = urlparse(url)
     try:
-        return get_fld(url) == get_fld(request.url)
-    except TldDomainNotFound:
+        url_parts = urlparse(url)
+    except ValueError:
+        return False
+
+    try:
+        request_fld = get_fld(request.url)
+    except (TldDomainNotFound, TldBadUrl, ValueError):
+        request_fld = request.hostname
+
+    try:
+        return get_fld(url) == request_fld
+    except (TldDomainNotFound, ValueError):
         # Internal domain of IP
         # Check hostname instead of netloc to allow other ports
-        return url_parts.hostname == request.hostname
+        try:
+            return url_parts.hostname == request.hostname
+        except ValueError:
+            return False
+    except TldBadUrl:
+        # Some applications contain malformed URLs that tld can't process
+        return False
 
 
 class Scope:

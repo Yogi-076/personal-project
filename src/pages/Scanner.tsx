@@ -431,10 +431,15 @@ export const Scanner = () => {
 
     // ── Start Scan ──
     const handleStartScan = async () => {
-        if (!targetUrl) {
-            toast({ title: "Missing Target", description: "Enter a target URL.", variant: "destructive" });
+        if (!targetUrl.trim()) {
+            toast({ title: "Missing Target", description: "Enter a target URL or domain.", variant: "destructive" });
             return;
         }
+
+        // Auto-normalize: add http:// if no scheme is provided
+        const normalizedUrl = /^https?:\/\//i.test(targetUrl.trim()) ? targetUrl.trim() : `http://${targetUrl.trim()}`;
+        if (normalizedUrl !== targetUrl) setTargetUrl(normalizedUrl);
+
         if (authEnabled && (!loginUrl || !authUsername || !authPassword)) {
             toast({ title: "Auth Required", description: "Fill in all authentication fields.", variant: "destructive" });
             return;
@@ -448,7 +453,7 @@ export const Scanner = () => {
 
         const typeConfig = SCAN_TYPES.find(t => t.id === scanType);
         addLog(`🚀 Initializing ${typeConfig?.label || 'Scanner'}...`);
-        addLog(`📡 Target: ${targetUrl}`);
+        addLog(`📡 Target: ${normalizedUrl}`);
         if (authEnabled) {
             addLog(`🔐 Authentication: Enabled`);
             addLog(`🔑 Login URL: ${loginUrl}`);
@@ -464,12 +469,12 @@ export const Scanner = () => {
 
             if (authEnabled) {
                 data = await scannerApi.startAuthenticatedScan({
-                    target: targetUrl, loginUrl, username: authUsername,
+                    target: normalizedUrl, loginUrl, username: authUsername,
                     password: authPassword, selectors, tool: 'wapiti', projectId: projectId || undefined,
                     fullModules: fullModulesEnabled, spaMode: spaModeEnabled
                 });
             } else {
-                data = await scannerApi.startScan(targetUrl, {
+                data = await scannerApi.startScan(normalizedUrl, {
                     wafBypass: wafBypassEnabled,
                     proxy: proxyEnabled ? proxyUrl : undefined,
                     projectId: projectId || undefined,
@@ -483,7 +488,7 @@ export const Scanner = () => {
             addLog(`✅ Session ID: ${scanId.substring(0, 8)}`);
             addLog('🔍 Scan in progress...');
 
-            toast({ title: "Scan Started", description: `${typeConfig?.label} on ${targetUrl}` });
+            toast({ title: "Scan Started", description: `${typeConfig?.label} on ${normalizedUrl}` });
 
             // ── Polling ──
             const pollInterval = window.setInterval(async () => {
@@ -521,9 +526,11 @@ export const Scanner = () => {
                         }
                     } else if (statusData.status === 'failed') {
                         clearInterval(pollInterval);
-                        addLog(`❌ ${statusData.error || 'Scan failed'}`);
+                        // Show a clean, user-friendly error message
+                        const errMsg = statusData.error || 'Scan failed unexpectedly';
+                        addLog(`❌ ${errMsg}`);
                         setIsScanning(false);
-                        toast({ variant: "destructive", title: "Failed", description: statusData.error || 'Scan failed' });
+                        toast({ variant: "destructive", title: "Scan Failed", description: errMsg });
                         fetchHistory();
                     }
                 } catch (error) { console.error("Poll error", error); }
@@ -531,11 +538,12 @@ export const Scanner = () => {
 
         } catch (error: any) {
             setIsScanning(false);
-            const msg = error.response?.data?.error || error.message || 'Connection failed';
+            const msg = error.response?.data?.error || error.message || 'Connection to scanner failed. Ensure backend is running.';
             addLog(`❌ ${msg}`);
-            toast({ variant: 'destructive', title: "Error", description: msg });
+            toast({ variant: 'destructive', title: "Error Starting Scan", description: msg });
         }
     };
+
 
     const handleStopScan = async () => {
         if (!currentScanId) return;
@@ -567,12 +575,48 @@ export const Scanner = () => {
     };
 
     const getLogStyle = (msg: string) => {
-        if (msg.includes('ERROR') || msg.includes('failed') || msg.includes('❌') || msg.includes('🛑')) return 'text-red-400 font-medium';
+        const lowerMsg = msg.toLowerCase();
+        if (msg.includes('ERROR') || msg.includes('failed') || msg.includes('❌') || msg.includes('🛑') || lowerMsg.includes('vulnerability in') || lowerMsg.includes('lack of anti csrf')) return 'text-red-400 font-medium';
         if (msg.includes('WARN') || msg.includes('⚠️')) return 'text-yellow-400';
-        if (msg.includes('COMPLETE') || msg.includes('✅')) return 'text-emerald-400 font-medium';
-        if (msg.includes('🚀') || msg.includes('🔬') || msg.includes('🎯')) return 'text-blue-400';
+        if (msg.includes('COMPLETE') || msg.includes('✅') || msg.trim().startsWith('[+]')) return 'text-emerald-400/90';
+        if (msg.includes('🚀') || msg.includes('🔬') || msg.includes('🎯') || msg.trim().startsWith('[*]')) return 'text-blue-400/90';
         if (msg.includes('📊') || msg.includes('📦')) return 'text-purple-400';
-        return 'text-foreground/60';
+        if (msg.trim().startsWith('---')) return 'text-purple-400/50';
+        if (msg.trim().startsWith('data:') || msg.trim().startsWith('Host:') || msg.trim().startsWith('Referer:') || msg.trim().startsWith('Content-Type:') || msg.trim().match(/^[A-Z]+\s\//)) return 'text-muted-foreground/50 pl-6';
+        return 'text-foreground/70';
+    };
+
+    // Component to render individual log lines beautifully
+    const renderTerminalLine = (log: string, i: number) => {
+        const timestampMatch = log.match(/^\[([\d:]+\s?(?:AM|PM)?)\]\s?(.*)/);
+        let time = '';
+        let message = log;
+
+        if (timestampMatch) {
+            time = timestampMatch[1];
+            message = timestampMatch[2];
+        }
+
+        // Highlight methods and URLs minimally
+        const formattedMessage = message.replace(/\b(GET|POST|PUT|DELETE)\b/g, '<span class="text-sky-400 font-bold">$1</span>')
+            .replace(/(https?:\/\/[^\s]+)/g, '<span class="text-emerald-400/70 underline underline-offset-2">$1</span>')
+            .replace(/(\[\+\])/g, '<span class="text-emerald-500 font-bold">$1</span>')
+            .replace(/(\[\*\])/g, '<span class="text-blue-500 font-bold">$1</span>')
+            .replace(/(\[-\])/g, '<span class="text-red-500 font-bold">$1</span>');
+
+        return (
+            <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.15 }}
+                className={`break-words py-[1.5px] flex items-start gap-2 w-full ${getLogStyle(message)}`}
+            >
+                <span className="text-primary/30 select-none font-bold shrink-0 mt-[1px]">❯</span>
+                {time && <span className="text-muted-foreground/30 shrink-0 select-none font-mono text-[10px] mt-[1px]">[{time}]</span>}
+                <span className="flex-1 whitespace-pre-wrap font-mono relative leading-relaxed tracking-wide" dangerouslySetInnerHTML={{ __html: formattedMessage }} />
+            </motion.div>
+        );
     };
 
     const activeType = SCAN_TYPES.find(t => t.id === scanType)!;
@@ -842,17 +886,7 @@ export const Scanner = () => {
                                         {/* Terminal Body */}
                                         <ScrollArea className="flex-1 bg-[#070b14]" ref={scrollRef}>
                                             <div className="p-5 font-mono text-[11px] leading-relaxed space-y-[2px]">
-                                                {logs.map((log, i) => (
-                                                    <motion.div
-                                                        key={i}
-                                                        initial={{ opacity: 0, x: -8 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ duration: 0.15 }}
-                                                        className={`break-words py-[1px] ${getLogStyle(log)}`}
-                                                    >
-                                                        <span className="text-primary/20 mr-2 select-none font-bold">❯</span>{log}
-                                                    </motion.div>
-                                                ))}
+                                                {logs.map((log, i) => renderTerminalLine(log, i))}
                                                 {isScanning && (
                                                     <div className="flex items-center gap-2 mt-3 text-primary/40">
                                                         <motion.span

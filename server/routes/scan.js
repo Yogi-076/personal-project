@@ -19,12 +19,16 @@ const { wapitiService, zapService, katanaService, nucleiService, retireService, 
 // ── Start Scan (Wapiti / ZAP / AI Hunter / Retire) ───────────────────────────
 router.post('/api/scan/start', requireModule('dast_core'), async (req, res) => {
     try {
-        const { target, options = {}, projectId } = req.body || {};
+        const { options = {}, projectId } = req.body || {};
+        let target = (req.body.target || '').trim();
 
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
-        // projectId is optional - scans can run without being attached to a project
 
-        try { new URL(target); } catch (e) { return res.status(400).json({ error: 'Invalid URL format' }); }
+        // Auto-add scheme if missing (so users can type bare domains like testfire.net)
+        if (!/^https?:\/\//i.test(target)) target = `http://${target}`;
+
+        // Validate the normalized URL
+        try { new URL(target); } catch (e) { return res.status(400).json({ error: `Invalid target URL: ${target}` }); }
 
         const scanId = uuidv4();
         const tool = (req.body.options?.tool || req.body.tool || 'wapiti').toLowerCase();
@@ -324,9 +328,14 @@ router.get('/api/scan/ai-hunter/status/:scanId', async (req, res) => {
 // ── Authenticated Scan (Gray Box) ─────────────────────────────────────────────
 router.post('/api/scan/authenticated/start', requireModule('dast_core'), async (req, res) => {
     try {
-        const { target, loginUrl, username, password, selectors, tool, fullModules, spaMode } = req.body || {};
+        let { target, loginUrl, username, password, selectors, tool, fullModules, spaMode } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
         if (!loginUrl || !username || !password) return res.status(400).json({ error: 'Authentication credentials are required for Gray Box scanning' });
+
+        // Auto-add scheme if missing
+        if (!/^https?:\/\//i.test(target)) target = `http://${target}`;
+        if (!/^https?:\/\//i.test(loginUrl)) loginUrl = `http://${loginUrl}`;
+
 
         const scanId = uuidv4();
         await storage.saveScan({ id: scanId, target, type: 'authenticated', status: 'authenticating', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });

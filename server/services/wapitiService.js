@@ -11,10 +11,41 @@ class WapitiService {
         this.scanProgress = new Map();
         this.scanLogs = new Map(); // Store logs for each scan
         this.activeProcesses = new Map(); // Store active child processes
+        // Auto-patch the system Wapiti crawler.py to handle TldBadUrl
+        this._patchSystemWapiti();
+    }
+
+    /**
+     * Self-healing patch: runs patch_vps_wapiti.py to fix TldBadUrl crash
+     * in the system Wapiti crawler.py on the VPS.
+     * Non-fatal: silently skips if not on Linux or no write permissions.
+     */
+    _patchSystemWapiti() {
+        if (process.platform === 'win32') return;
+        const patchScript = path.join(__dirname, '../../patch_vps_wapiti.py');
+        if (!require('fs').existsSync(patchScript)) return;
+        try {
+            const result = require('child_process').execSync(
+                `python3 "${patchScript}"`,
+                { stdio: 'pipe', timeout: 15000 }
+            );
+            const out = result.toString().trim();
+            if (out) console.log('[WapitiService] Crawler patch:', out);
+        } catch (e) {
+            // Non-fatal: VPS may need sudo for system paths
+            const errMsg = (e.stderr?.toString() || e.message || '').substring(0, 120);
+            if (errMsg) console.warn('[WapitiService] Crawler patch skipped:', errMsg);
+        }
     }
 
     detectWapitiPath() {
-        // 1. Try finding it in the PATH
+        // 1. Try local patched source first
+        const localPath = path.join(__dirname, '../../wapiti-master/wapiti-master/bin/wapiti');
+        if (require('fs').existsSync(localPath)) {
+            return localPath;
+        }
+
+        // 2. Try finding it in the PATH
         try {
             const systemPath = execSync(process.platform === 'win32' ? 'where wapiti' : 'which wapiti', { stdio: 'pipe' }).toString().trim().split('\n')[0];
             if (systemPath) return systemPath.trim();
@@ -22,9 +53,8 @@ class WapitiService {
             // Ignore error
         }
 
-        // 2. Try common locations or user provided override
+        // 3. Try common locations or user provided override
         const commonPaths = [
-            path.join(__dirname, '../../wapiti-master/wapiti-master/bin/wapiti'), // Local source
             'C:\\Users\\yogi\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\Scripts\\wapiti.exe',
             'C:\\Python311\\Scripts\\wapiti.exe',
             process.env.WAPITI_PATH
@@ -338,23 +368,49 @@ class WapitiService {
      * Extract a human-readable error from Python traceback
      */
     _extractCleanError(rawError) {
-        // Try to find the last meaningful error line
         const lines = rawError.split('\n').filter(l => l.trim());
 
-        // Look for common Python error patterns
+        // Check for specific known errors first and map to friendly messages
+        if (rawError.includes('TldBadUrl') || rawError.includes('Is not a valid URL')) {
+            return 'The target URL or a discovered link is not a valid URL. Try using the full URL including http:// (e.g., http://example.com).';
+        }
+        if (rawError.includes('ENOENT') || rawError.includes('not found') || rawError.includes('No such file')) {
+            return 'VAPT Engine binary not found. Ensure the scanner is installed on the server.';
+        }
+        if (rawError.includes('ConnectionRefused') || rawError.includes('Connection refused')) {
+            return 'Target refused the connection. Ensure the target is online and accessible.';
+        }
+        if (rawError.includes('TimeoutError') || rawError.includes('timed out') || rawError.includes('connect timeout')) {
+            return 'Scan timed out. Target may be slow or unreachable. Try scanning a specific page instead of the root.';
+        }
+        if (rawError.includes('SSLError') || rawError.includes('SSL')) {
+            return 'SSL certificate error. The target may have an invalid or self-signed certificate.';
+        }
+        if (rawError.includes('PermissionError')) {
+            return 'Permission error on server. Scanner may not have write access to temp directory.';
+        }
+        if (rawError.includes('MemoryError')) {
+            return 'Scanner ran out of memory. Try using Quick Scan mode with fewer modules.';
+        }
+        if (rawError.includes('MaxRetryError') || rawError.includes('Max retries')) {
+            return 'Could not reach target after multiple retries. Target may be down or blocking scanner.';
+        }
+        if (rawError.includes('SyntaxWarning')) {
+            // This is a non-fatal Python warning, not the actual error
+            const realError = lines.find(l => l.match(/^(tld\.|Error|Exception|urlparse|requests)/i));
+            if (realError) return realError.substring(0, 200);
+        }
+
+        // Look for clean Python exception line
         for (let i = lines.length - 1; i >= 0; i--) {
             const line = lines[i].trim();
-            if (line.match(/^(Error|Exception|TypeError|ValueError|ConnectionError|TimeoutError|HTTPError|SSLError|OSError)/i)) {
-                return line.substring(0, 200);
-            }
-            if (line.match(/^(requests\.exceptions|urllib3\.exceptions|httpx\.|aiohttp\.)/)) {
+            if (line.match(/^(Error|Exception|TypeError|ValueError|ConnectionError|TimeoutError|HTTPError|SSLError|OSError|tld\.)/i)) {
                 return line.substring(0, 200);
             }
         }
 
-        // If no specific error found, use last non-empty line
         const lastLine = lines[lines.length - 1] || '';
-        return lastLine.substring(0, 200) || 'Unknown error';
+        return lastLine.substring(0, 200) || 'Unknown error occurred during scan.';
     }
 
     addLog(scanId, message) {
@@ -437,6 +493,12 @@ class WapitiService {
                             type = nextLineMatch.split(" found in ")[0].trim();
                         } else if (nextLineMatch.includes(" for URL ")) {
                             type = nextLineMatch.split(" for URL ")[0].trim();
+                        } else if (nextLineMatch.includes("CSP is not set") || nextLineMatch.includes("CSP")) {
+                            type = "Content Security Policy (CSP) Not Configured";
+                        } else if (nextLineMatch.includes("Lack of anti CSRF token")) {
+                            type = "Cross-Site Request Forgery (CSRF)";
+                        } else if (!nextLineMatch.includes("http")) { // If it's a short descriptive text
+                            type = nextLineMatch;
                         }
 
                         let pathMatch = "unknown";

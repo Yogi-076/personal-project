@@ -803,7 +803,7 @@ def curl_repr(request: Request) -> str:
     if request.is_multipart:
         # POST with multipart
         for field_name, field_value in request.post_params:
-            curl_string += f' -F "{shell_escape(f'{field_name}={field_value}')}"'
+            curl_string += f' -F "{shell_escape(f"{field_name}={field_value}")}"'
         for field_name, field_value in request.file_params:
             curl_upload_kv = f"{field_name}=@your_local_file;filename={field_value[0]}"
             curl_string += f' -F "{shell_escape(curl_upload_kv)}"'
