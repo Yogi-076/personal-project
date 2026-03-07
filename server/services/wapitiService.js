@@ -13,6 +13,67 @@ class WapitiService {
         this.activeProcesses = new Map(); // Store active child processes
         // Auto-patch the system Wapiti crawler.py to handle TldBadUrl
         this._patchSystemWapiti();
+        // Self-heal: restore corrupted system wapitiCore/main/wapiti.py from local clean copy
+        this._healWapitiCore();
+    }
+
+    /**
+     * Self-healing: copies the local clean wapitiCore/main/wapiti.py to the system path
+     * if the system version has been corrupted (IndentationError etc.).
+     * Non-fatal: silently skips if not on Linux, no write permissions, or already healthy.
+     */
+    _healWapitiCore() {
+        if (process.platform === 'win32') return;
+        try {
+            const fss = require('fs');
+            const localWapitiPy = path.join(__dirname, '../../wapiti-master/wapiti-master/wapitiCore/main/wapiti.py');
+            if (!fss.existsSync(localWapitiPy)) return;
+
+            // Find the system wapitiCore path via python3
+            let sysCorePath = null;
+            try {
+                const result = require('child_process').execSync(
+                    'python3 -c "import wapitiCore, os; print(os.path.dirname(os.path.abspath(wapitiCore.__file__)))"',
+                    { stdio: 'pipe', timeout: 5000 }
+                );
+                sysCorePath = result.toString().trim();
+            } catch (e) {
+                // wapitiCore might not be importable at all — that's OK
+                return;
+            }
+
+            if (!sysCorePath) return;
+            const sysWapitiPy = path.join(sysCorePath, 'main', 'wapiti.py');
+            if (!fss.existsSync(sysWapitiPy)) return;
+
+            // Check if system file is healthy by trying a syntax check
+            try {
+                require('child_process').execSync(
+                    `python3 -m py_compile "${sysWapitiPy}"`,
+                    { stdio: 'pipe', timeout: 5000 }
+                );
+                // Syntax OK — no need to heal
+                return;
+            } catch (e) {
+                // Syntax error found — heal it
+                console.log('[WapitiService] Detected corrupted system wapitiCore/main/wapiti.py. Restoring from local clean copy...');
+            }
+
+            // Copy local clean version to system path
+            fss.copyFileSync(localWapitiPy, sysWapitiPy);
+
+            // Also clear any .pyc cache for this file
+            const pycDir = path.join(sysCorePath, 'main', '__pycache__');
+            if (fss.existsSync(pycDir)) {
+                const caches = fss.readdirSync(pycDir).filter(f => f.startsWith('wapiti.'));
+                caches.forEach(f => { try { fss.unlinkSync(path.join(pycDir, f)); } catch (e) { } });
+            }
+
+            console.log('[WapitiService] ✅ wapitiCore/main/wapiti.py restored successfully from local clean copy.');
+        } catch (e) {
+            // Non-fatal
+            console.warn('[WapitiService] _healWapitiCore skipped:', (e.message || '').substring(0, 120));
+        }
     }
 
     /**
