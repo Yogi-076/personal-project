@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MatrixRain } from "@/components/MatrixRain";
 import { SecurityHUD } from "@/components/SecurityHUD";
+import { Eye, EyeOff, Lock, Shield, ShieldAlert, ShieldCheck, User as UserIcon, Mail } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,6 +20,36 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: "" });
+
+  const validatePassword = (pass: string) => {
+    let score = 0;
+    let feedback = "";
+
+    if (pass.length === 0) return { score: 0, feedback: "" };
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[a-z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score < 2) feedback = "Very Weak - Use 8+ chars and mixed types";
+    else if (score < 3) feedback = "Weak - Needs more variety";
+    else if (score < 4) feedback = "Moderate - Add symbols/numbers";
+    else if (score < 5) feedback = "Strong - Good password";
+    else feedback = "Very Strong - Excellent";
+
+    return { score, feedback };
+  };
+
+  const onPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setPassword(val);
+    if (!isLogin) {
+      setPasswordStrength(validatePassword(val));
+    }
+  };
 
   useEffect(() => {
     if (session) {
@@ -226,17 +257,61 @@ const Auth = () => {
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs text-slate-400 px-1">Password</label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-slate-900/60 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        autoComplete={isLogin ? "current-password" : "new-password"}
-                        required
-                      />
+                      <div className="relative group/pass">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={onPasswordChange}
+                          placeholder="••••••••••••"
+                          className="w-full bg-slate-900/60 border border-slate-700 rounded-md px-3 py-2 pr-10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all border-slate-800 hover:border-slate-600"
+                          autoComplete={isLogin ? "current-password" : "new-password"}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors focus:outline-none"
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {!isLogin && password.length > 0 && (
+                        <div className="mt-2 space-y-1.5 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                          <div className="flex justify-between items-center text-[10px] font-mono tracking-wider mb-1">
+                            <span className={
+                              passwordStrength.score <= 2 ? "text-red-400" :
+                                passwordStrength.score <= 3 ? "text-amber-400" :
+                                  "text-green-400"
+                            }>
+                              STRENGTH: {passwordStrength.feedback.toUpperCase()}
+                            </span>
+                            <span className="text-slate-500">{passwordStrength.score}/5</span>
+                          </div>
+                          <div className="flex gap-1 h-1">
+                            {[1, 2, 3, 4, 5].map((level) => (
+                              <div
+                                key={level}
+                                className={`h-full flex-1 rounded-full transition-all duration-500 ${level <= passwordStrength.score
+                                    ? passwordStrength.score <= 2 ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                                      passwordStrength.score <= 3 ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
+                                        "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+                                    : "bg-slate-800"
+                                  }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-md transition-colors shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_rgba(37,99,235,0.6)] mt-2">
+                    <button
+                      type="submit"
+                      disabled={!isLogin && passwordStrength.score < 3}
+                      className={`w-full font-medium py-2 rounded-md transition-all mt-2 flex items-center justify-center gap-2 ${!isLogin && passwordStrength.score < 3
+                          ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
+                          : "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_rgba(37,99,235,0.6)] active:scale-[0.98]"
+                        }`}
+                    >
+                      {!isLogin && passwordStrength.score < 3 && <Shield size={16} />}
                       {isLogin ? "Initialize Uplink" : "Create Operator Profile"}
                     </button>
                   </form>

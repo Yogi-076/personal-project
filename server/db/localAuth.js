@@ -42,6 +42,18 @@ const localAuth = {
     registerUser: async (email, password, userData) => {
         return new Promise(async (resolve, reject) => {
             try {
+                // Password strength validation (safeguard)
+                let score = 0;
+                if (password.length >= 8) score++;
+                if (/[A-Z]/.test(password)) score++;
+                if (/[a-z]/.test(password)) score++;
+                if (/[0-9]/.test(password)) score++;
+                if (/[^A-Za-z0-9]/.test(password)) score++;
+
+                if (score < 3) {
+                    return reject(new Error('Password does not meet security requirements.'));
+                }
+
                 // Check if user exists
                 db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, row) => {
                     if (err) return reject(err);

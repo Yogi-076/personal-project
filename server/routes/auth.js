@@ -22,6 +22,21 @@ router.post('/auth/register', async (req, res) => {
             return res.status(400).json({ error: 'Email and password are required' });
         }
 
+        // Password strength validation
+        let score = 0;
+        if (password.length >= 8) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[a-z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+
+        if (score < 3) {
+            return res.status(400).json({
+                error: 'Weak password: Must be at least 8 characters long and include a mix of uppercase, lowercase, numbers, and special characters.'
+            });
+        }
+
+
         const { user, token } = await localAuth.registerUser(email, password, { username, firstName, lastName, orgName });
 
         res.json({
