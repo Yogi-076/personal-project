@@ -64,7 +64,7 @@ class GitleaksService {
 
         try {
             scan.logs.push(`[GIT] Cloning repository to ${targetPath}...`);
-            const clone = spawn('git', ['clone', '--depth', '1', repoUrl, targetPath], { shell: true });
+            const clone = spawn('git', ['-c', 'core.longpaths=true', 'clone', '--depth', '1', repoUrl, targetPath], { shell: true });
 
             clone.stdout.on('data', (d) => scan.logs.push(d.toString().trim()));
             clone.stderr.on('data', (d) => scan.logs.push(d.toString().trim()));
