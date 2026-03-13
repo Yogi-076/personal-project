@@ -12,6 +12,8 @@ const RetireService = require('./retireService');
 const SovereignShodan = require('./sovereignShodan');
 const GobusterService = require('./gobusterService');
 const ForreconService = require('./forreconService');
+const ArsenalService = require('./arsenalService'); 
+const gitleaksService = require('./gitleaksService');
 const aiHunter = require('./aiHunterService');
 
 module.exports = {
@@ -24,5 +26,7 @@ module.exports = {
     sovereignShodan: new SovereignShodan(),
     gobusterService: new GobusterService(),
     forreconService: new ForreconService(),
+    arsenalService: new ArsenalService(),
+    gitleaksService: gitleaksService,
     aiHunter,        // Already a singleton module (not a class)
 };

@@ -20,8 +20,8 @@ echo [2/2] Starting frontend development server...
 echo.
 echo ========================================
 echo Frontend is starting...
-echo Application will open at: http://localhost:8081
-echo Navigate to: http://localhost:8081/scanner
+echo Application will open at: http://localhost:8080
+echo Navigate to: http://localhost:8080/scanner
 echo Press Ctrl+C to stop the server
 echo ========================================
 echo.

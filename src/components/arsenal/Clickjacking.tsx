@@ -59,7 +59,7 @@ export const Clickjacking = () => {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-280px)] min-h-[500px] font-sans relative">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none -z-10" />
+            <div className="absolute inset-0 bg-black/20 pointer-events-none -z-10" />
 
             {/* Left Column: Mission Control */}
             <div className="lg:col-span-4 flex flex-col gap-4 h-full">
@@ -131,7 +131,45 @@ export const Clickjacking = () => {
                             </div>
                         ) : result ? (
                             <ScrollArea className="h-full w-full p-6">
-                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 flex flex-col h-full">
+                                    {/* Visual Evidence Section (PoC) */}
+                                    {result.vulnerable ? (
+                                        <div className="flex-1 flex flex-col gap-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <Target className="w-3 h-3" /> Exploitation Preview (PoC)
+                                                </h4>
+                                                <Badge variant="outline" className="text-[9px] border-red-500/30 text-red-500 bg-red-500/5 animate-pulse">
+                                                    LIVE RENDER ATTEMPT
+                                                </Badge>
+                                            </div>
+                                            
+                                            <div className="relative h-[400px] rounded-lg border border-red-500/30 bg-[#0a0a0a] shadow-[inset_0_0_40px_rgba(0,0,0,0.8)] overflow-hidden group">
+                                                {/* The "Attacker" Overlay */}
+                                                <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-red-500/10 z-10 group-hover:border-red-500/30 transition-colors" />
+                                                <div className="absolute top-2 left-2 z-20 bg-red-600/80 backdrop-blur-md text-[9px] font-bold text-white px-2 py-0.5 rounded shadow-lg uppercase tracking-widest border border-red-500/50">
+                                                    Malicious Iframe Overlay
+                                                </div>
+                                                
+                                                <iframe 
+                                                    src={target.startsWith('http') ? target : `https://${target}`}
+                                                    className="w-full h-full border-none opacity-70 filter grayscale-[30%] group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 scale-100"
+                                                    title="Clickjacking PoC"
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex-1 flex flex-col items-center justify-center space-y-4 border border-green-500/20 rounded-xl bg-green-500/5 p-8">
+                                            <div className="relative">
+                                                <Shield className="w-20 h-20 text-green-500/40" />
+                                                <CheckCircle2 className="w-8 h-8 text-green-500 absolute -bottom-2 -right-2 bg-black rounded-full" />
+                                            </div>
+                                            <div className="text-center space-y-1">
+                                                <h3 className="text-green-400 font-bold uppercase tracking-tighter text-lg">Target Hardened</h3>
+                                                <p className="text-xs text-muted-foreground max-w-xs">No UI redressing vectors detected. The application's framing policy is properly configured.</p>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Final Assessment Frame */}
                                     <div className={`p-4 rounded-lg border flex items-start gap-4 ${result.vulnerable ? 'bg-red-500/5 border-red-500/20' : 'bg-green-500/5 border-green-500/20'}`}>

@@ -123,6 +123,7 @@
     background: transparent;
   }
 
+  html,
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -130,6 +131,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
   }
 
   h1,

@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Play, Terminal, Target, Settings, FileJson, AlertTriangle, Trash2, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Loader2, Play, Terminal, Target, Settings, FileJson, AlertTriangle, Trash2, CheckCircle2, XCircle, Info, Search } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
+import { useScanner } from "@/contexts/ScannerContext";
 import { Config } from "@/config";
 
 const API_URL = Config.API_URL;
@@ -17,6 +18,7 @@ interface ToolStatus {
 
 export const ArsenalPipeline = () => {
     const { toast } = useToast();
+    const { scanState, setArsenalScanId } = useScanner();
     const [targetUrl, setTargetUrl] = useState('');
     const [threads, setThreads] = useState('10');
     const [depth, setDepth] = useState('3');
@@ -26,6 +28,7 @@ export const ArsenalPipeline = () => {
     const [report, setReport] = useState<any>(null);
     const [logLines, setLogLines] = useState<string[]>([]);
     const [toolStatus, setToolStatus] = useState<ToolStatus | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const [checkingDeps, setCheckingDeps] = useState(false);
     const terminalEndRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +39,39 @@ export const ArsenalPipeline = () => {
     useEffect(() => {
         checkDeps();
     }, []);
+
+    // Poll for status if we have an active scanId
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (scanState.arsenalScanId) {
+            setIsRunning(true);
+            interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_URL}/api/tools/arsenal-pipeline/status/${scanState.arsenalScanId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.logs) setLogLines(data.logs);
+                        if (data.report) setReport(data.report);
+                        
+                        if (data.status === 'completed' || data.status === 'failed' || data.status === 'stopped') {
+                            setIsRunning(false);
+                            clearInterval(interval);
+                            if (data.status === 'completed') {
+                                toast({ title: "Pipeline Completed", description: "Vulnerability analysis finished." });
+                            }
+                        }
+                    } else if (res.status === 404) {
+                        setArsenalScanId(null);
+                        setIsRunning(false);
+                        clearInterval(interval);
+                    }
+                } catch (e) {
+                    console.error('Polling error:', e);
+                }
+            }, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [scanState.arsenalScanId]);
 
     const checkDeps = async () => {
         setCheckingDeps(true);
@@ -80,43 +116,10 @@ export const ArsenalPipeline = () => {
                 throw new Error(errData.error || "API responded with error status");
             }
 
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error("No response body to read");
+            const data = await response.json();
+            setArsenalScanId(data.scanId);
+            toast({ title: "Pipeline Ignition", description: "Arsenal Core engine engaged." });
 
-            const decoder = new TextDecoder("utf-8");
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                // SSE format: lines starting with "data: " separated by \n\n
-                const parts = buffer.split('\n\n');
-                buffer = parts.pop() || '';
-
-                for (const part of parts) {
-                    const line = part.startsWith('data: ') ? part.slice(6) : part;
-                    if (!line.trim()) continue;
-                    try {
-                        const parsed = JSON.parse(line);
-                        if (parsed.type === 'log' || parsed.type === 'error') {
-                            setLogLines(prev => [...prev, parsed.data]);
-                        } else if (parsed.type === 'done') {
-                            if (parsed.report) {
-                                setReport(parsed.report);
-                                setLogLines(prev => [...prev, '[+] Pipeline execution completed successfully.']);
-                                toast({ title: "Scan Complete", description: `Found ${parsed.report.summary?.confirmed_vulns ?? 0} vulnerabilities.` });
-                            } else {
-                                setLogLines(prev => [...prev, '[!] Pipeline finished. No JSON report generated (some tools may not be installed).']);
-                                toast({ title: "Pipeline Finished", description: "Check terminal output above for details." });
-                            }
-                        }
-                    } catch (e) {
-                        if (line) setLogLines(prev => [...prev, line]);
-                    }
-                }
-            }
         } catch (error: any) {
             console.error('Pipeline Execution Error:', error);
             setLogLines(prev => [...prev, `[!] Error: ${error.message || 'Network error connecting to backend API.'}`]);
@@ -200,7 +203,18 @@ export const ArsenalPipeline = () => {
                                 {isRunning ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Pipeline Running...</>) : (<><Play className="mr-2 h-4 w-4" />Deploy Full Pipeline</>)}
                             </Button>
                             {isRunning && (
-                                <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10" onClick={() => { setIsRunning(false); setLogLines(prev => [...prev, '[!] Scan reset by user.']); }}>
+                                <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10" onClick={async () => { 
+                                    if (scanState.arsenalScanId) {
+                                        await fetch(`${API_URL}/api/tools/arsenal-pipeline/stop`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ scanId: scanState.arsenalScanId })
+                                        });
+                                    }
+                                    setArsenalScanId(null);
+                                    setIsRunning(false); 
+                                    setLogLines(prev => [...prev, '[!] Scan reset by user.']); 
+                                }}>
                                     Reset
                                 </Button>
                             )}
@@ -258,10 +272,21 @@ export const ArsenalPipeline = () => {
                             <FileJson className="w-5 h-5 text-blue-500" />
                             <span>Scan Report & Findings</span>
                         </CardTitle>
-                        <div className="flex space-x-4 text-sm text-muted-foreground">
-                            <span>Duration: {report.meta?.duration_seconds}s</span>
-                            <span>Total URLs: {report.summary?.total_urls}</span>
-                            <span>Fuzzable Params: {report.summary?.total_params}</span>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex space-x-4 text-sm text-muted-foreground">
+                                <span>Duration: {report.meta?.duration_seconds}s</span>
+                                <span>Total URLs: {report.summary?.total_urls}</span>
+                                <span>Fuzzable Params: {report.summary?.total_params}</span>
+                            </div>
+                            <div className="relative w-full md:w-64 group">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-blue-400 transition-colors" />
+                                <Input 
+                                    placeholder="Search findings..." 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-8 h-8 bg-background/50 border-border text-xs focus:border-blue-400/50"
+                                />
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -279,14 +304,19 @@ export const ArsenalPipeline = () => {
                             </h3>
                             {report.findings?.length > 0 ? (
                                 <div className="space-y-2">
-                                    {report.findings.map((finding: any, idx: number) => (
-                                        <div key={idx} className="p-3 border border-border rounded bg-background flex flex-col space-y-2 text-sm font-mono">
-                                            <div className="flex items-center space-x-2">
-                                                <Badge className="bg-red-500 text-white">{finding.type}</Badge>
+                                    {(report.findings || [])
+                                        .filter((f: any) => 
+                                            (f.type || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                            (f.details || "").toLowerCase().includes(searchQuery.toLowerCase())
+                                        )
+                                        .map((finding: any, idx: number) => (
+                                            <div key={idx} className="p-3 border border-border rounded bg-background flex flex-col space-y-2 text-sm font-mono">
+                                                <div className="flex items-center space-x-2">
+                                                    <Badge className="bg-red-500 text-white">{finding.type}</Badge>
+                                                </div>
+                                                <span className="text-blue-400">{finding.details}</span>
                                             </div>
-                                            <span className="text-blue-400">{finding.details}</span>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             ) : (
                                 <div className="p-8 text-center text-muted-foreground border border-border border-dashed rounded bg-background/50">

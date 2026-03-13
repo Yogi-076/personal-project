@@ -1,16 +1,33 @@
 import { useState, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
 import { motion } from "framer-motion";
-import { Shield, LayoutDashboard, Terminal, Activity, FileCode, Wrench, ChevronRight, Search, Globe, Layers, Ghost, Gift, FolderSearch, Key, Package } from "lucide-react";
+import { Shield, ShieldCheck, LayoutDashboard, Terminal, Activity, FileCode, Wrench, ChevronRight, Search, Globe, Layers, Ghost, Gift, FolderSearch, Key, Package, Menu, Target, Lock } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CyberGrid } from "@/components/CyberGrid";
-import { ArsenalEmptyState } from "@/components/arsenal/ArsenalEmptyState";
-import { Forrecon } from "@/components/arsenal/Forrecon";
-import { AetherCore } from "@/components/arsenal/AetherCore";
-import { PayloadForge } from "@/components/arsenal/PayloadForge";
-import { JWTMaster } from "./JWTMaster";
-import { ArsenalPipeline } from "@/components/arsenal/ArsenalPipeline";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppSidebar } from "@/components/AppSidebar";
+import { AnimatePresence } from "framer-motion";
+import { lazy, Suspense } from "react";
+
+// Lazy Loaded Arsenal Components
+const Forrecon = lazy(() => import("@/components/arsenal/Forrecon").then(m => ({ default: m.Forrecon })));
+const AetherCore = lazy(() => import("@/components/arsenal/AetherCore").then(m => ({ default: m.AetherCore })));
+const PayloadForge = lazy(() => import("@/components/arsenal/PayloadForge").then(m => ({ default: m.PayloadForge })));
+const JWTMaster = lazy(() => import("./JWTMaster").then(m => ({ default: m.JWTMaster })));
+const HeaderChecker = lazy(() => import("@/components/arsenal/HeaderChecker").then(m => ({ default: m.HeaderChecker })));
+const Clickjacking = lazy(() => import("@/components/arsenal/Clickjacking").then(m => ({ default: m.Clickjacking })));
+const ArsenalPipeline = lazy(() => import("@/components/arsenal/ArsenalPipeline").then(m => ({ default: m.ArsenalPipeline })));
+const Gitleaks = lazy(() => import("@/components/arsenal/Gitleaks").then(m => ({ default: m.Gitleaks })));
+
+const ToolSkeleton = () => (
+    <div className="w-full h-full flex flex-col gap-6 animate-pulse p-4">
+        <div className="h-24 bg-white/5 rounded-2xl border border-white/10" />
+        <div className="flex-1 grid grid-cols-12 gap-6">
+            <div className="col-span-4 bg-white/5 rounded-2xl border border-white/10" />
+            <div className="col-span-8 bg-white/5 rounded-2xl border border-white/10" />
+        </div>
+    </div>
+);
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
     constructor(props: { children: ReactNode }) {
@@ -55,6 +72,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 const Tools = () => {
     const [searchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState("forrecon");
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
         const toolParam = searchParams.get("tool");
@@ -64,30 +82,35 @@ const Tools = () => {
     }, [searchParams]);
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex overflow-hidden">
+        <div className="h-screen bg-background text-foreground flex overflow-hidden">
             <CyberGrid />
-            <AppSidebar />
+            <AppSidebar mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />
 
-            <main className="flex-1 relative z-10 flex flex-col h-screen overflow-hidden p-4 lg:p-6">
+            <main className="flex-1 relative z-10 flex flex-col h-full overflow-hidden p-4 lg:p-6">
                 <div className="flex-none mb-4">
                     {/* Compact Header */}
                     <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="flex items-center gap-2 text-primary mb-1"
-                            >
-                                <Wrench className="w-4 h-4" />
-                                <span className="text-xs font-bold uppercase tracking-widest">Arsenal</span>
-                            </motion.div>
-                            <motion.h1
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="text-2xl font-extrabold tracking-tight"
-                            >
-                                Advanced <span className="text-primary italic">Exploitation</span> Tools
-                            </motion.h1>
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-muted rounded-md lg:hidden">
+                                <Menu className="w-5 h-5" />
+                            </button>
+                            <div>
+                                <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="flex items-center gap-2 text-primary mb-1"
+                                >
+                                    <Wrench className="w-4 h-4" />
+                                    <span className="text-xs font-bold uppercase tracking-widest">Arsenal</span>
+                                </motion.div>
+                                <motion.h1
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="text-2xl font-extrabold tracking-tight"
+                                >
+                                    Advanced <span className="text-primary italic">Exploitation</span> Tools
+                                </motion.h1>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -95,55 +118,84 @@ const Tools = () => {
                 {/* Tools Interface - Fills remaining space */}
                 <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                     <Tabs value={activeTab} className="h-full flex flex-col space-y-4" onValueChange={setActiveTab}>
-                        <TabsList className="flex-none bg-background/40 backdrop-blur border border-white/5 p-1 h-auto flex flex-wrap gap-2 justify-start w-full">
-                            <TabsTrigger value="forrecon" className="data-[state=active]:bg-cyber-cyan/20 data-[state=active]:text-cyber-cyan font-mono text-xs px-3 py-1.5 border border-transparent data-[state=active]:border-cyber-cyan/30">
-                                <Search className="w-3 h-3 mr-2" /> FORRECON
+                        <TabsList className="flex-none bg-black/70 backdrop-blur-2xl border border-white/10 p-1.5 h-auto flex flex-wrap gap-2 justify-start w-full rounded-2xl">
+                            <TabsTrigger
+                                value="forrecon"
+                                className="data-[state=active]:bg-cyber-cyan/15 data-[state=active]:text-cyber-cyan font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-cyber-cyan/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Search className="w-3.5 h-3.5 mr-2" /> FORRECON
                             </TabsTrigger>
-                            <TabsTrigger value="aether" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-mono text-xs px-3 py-1.5 border border-transparent data-[state=active]:border-cyan-500/30">
-                                <Globe className="w-3 h-3 mr-2" /> AETHER-CORE
+                            <TabsTrigger
+                                value="aether"
+                                className="data-[state=active]:bg-cyan-500/15 data-[state=active]:text-cyan-400 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-cyan-500/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Globe className="w-3.5 h-3.5 mr-2" /> AETHER-CORE
                             </TabsTrigger>
-                            <TabsTrigger value="payload" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 font-mono text-xs px-3 py-1.5 border border-transparent data-[state=active]:border-purple-500/30">
-                                <Wrench className="w-3 h-3 mr-2" /> PAYLOAD-FORGE
+                            <TabsTrigger
+                                value="payload"
+                                className="data-[state=active]:bg-purple-600/15 data-[state=active]:text-purple-400 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-purple-500/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Wrench className="w-3.5 h-3.5 mr-2" /> PAYLOAD-FORGE
                             </TabsTrigger>
-                            <TabsTrigger value="jwt" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 font-mono text-xs px-3 py-1.5 border border-transparent data-[state=active]:border-amber-500/30">
-                                <Key className="w-3 h-3 mr-2" /> JWT-MASTER
+                            <TabsTrigger
+                                value="jwt"
+                                className="data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-400 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-amber-500/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Key className="w-3.5 h-3.5 mr-2" /> JWT-MASTER
                             </TabsTrigger>
-                            <TabsTrigger value="arsenal-pipeline" className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400 font-mono text-xs px-3 py-1.5 border border-transparent data-[state=active]:border-red-500/30">
-                                <Terminal className="w-3 h-3 mr-2" /> ARSENAL-PIPELINE
+                            <TabsTrigger
+                                value="headers"
+                                className="data-[state=active]:bg-green-500/15 data-[state=active]:text-green-400 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-green-500/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <ShieldCheck className="w-3.5 h-3.5 mr-2" /> HEADERS
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="clickjacking"
+                                className="data-[state=active]:bg-blue-500/15 data-[state=active]:text-blue-400 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-blue-500/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Target className="w-3.5 h-3.5 mr-2" /> CLICKJACKING
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="arsenal-pipeline"
+                                className="data-[state=active]:bg-red-500/15 data-[state=active]:text-red-400 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-red-500/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Terminal className="w-3.5 h-3.5 mr-2" /> ARSENAL-PIPELINE
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="gitleaks"
+                                className="data-[state=active]:bg-red-600/15 data-[state=active]:text-red-500 font-black text-[10px] tracking-widest px-4 py-2 border border-transparent data-[state=active]:border-red-600/30 rounded-xl transition-all hover:bg-white/5 active:scale-95"
+                            >
+                                <Lock className="w-3.5 h-3.5 mr-2" /> GITLEAKS
                             </TabsTrigger>
                         </TabsList>
 
-                        <div className="flex-1 border border-white/5 rounded-lg bg-black/20 backdrop-blur-sm p-4 overflow-hidden relative">
-                            <TabsContent value="forrecon" className="h-full mt-0 data-[state=active]:flex flex-col">
-                                <ErrorBoundary>
-                                    <Forrecon />
-                                </ErrorBoundary>
-                            </TabsContent>
-                            <TabsContent value="aether" className="h-full mt-0 data-[state=active]:flex flex-col">
-                                <ErrorBoundary>
-                                    <AetherCore />
-                                </ErrorBoundary>
-                            </TabsContent>
-                            <TabsContent value="payload" className="h-full mt-0 data-[state=active]:flex flex-col">
-                                <ErrorBoundary>
-                                    <PayloadForge />
-                                </ErrorBoundary>
-                            </TabsContent>
-                            <TabsContent value="jwt" className="h-full mt-0 data-[state=active]:flex flex-col">
-                                <ErrorBoundary>
-                                    <JWTMaster />
-                                </ErrorBoundary>
-                            </TabsContent>
-                            <TabsContent value="arsenal-pipeline" className="h-[calc(100vh-250px)] mt-0 data-[state=active]:flex flex-col overflow-y-auto">
-                                <ErrorBoundary>
-                                    <ArsenalPipeline />
-                                </ErrorBoundary>
-                            </TabsContent>
+                        <div className="flex-1 min-h-0 border border-white/10 rounded-2xl bg-black/60 backdrop-blur-3xl relative shadow-2xl overflow-hidden">
+                            {/* Simplified static background glow */}
+                            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+                                <div className="absolute -top-24 -right-24 w-96 h-96 blur-[120px] rounded-full opacity-10 bg-primary/20" />
+                            </div>
+
+                            {/* Conditional rendering for performance - only mounts active tab */}
+                            <ErrorBoundary>
+                                <div className="absolute inset-0 z-10 overflow-y-auto p-6">
+                                    <Suspense fallback={<ToolSkeleton />}>
+                                        {activeTab === 'forrecon' && <Forrecon />}
+                                        {activeTab === 'aether' && <AetherCore />}
+                                        {activeTab === 'payload' && <PayloadForge />}
+                                        {activeTab === 'jwt' && <JWTMaster />}
+                                        {activeTab === 'headers' && <HeaderChecker />}
+                                        {activeTab === 'clickjacking' && <Clickjacking />}
+                                        {activeTab === 'arsenal-pipeline' && <ArsenalPipeline />}
+                                        {activeTab === 'gitleaks' && <Gitleaks />}
+                                    </Suspense>
+                                </div>
+                            </ErrorBoundary>
                         </div>
+
                     </Tabs>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 };
 

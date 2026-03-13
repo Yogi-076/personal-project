@@ -4,11 +4,12 @@ import {
     Building2, Globe, Calendar, User, ShieldAlert,
     Search, FileText, Paperclip, BarChart3, Settings,
     ArrowLeft, Download, Shield, ShieldCheck, AlertTriangle, AlertCircle, Info, Loader2,
-    Target, Zap, Activity, ChevronRight, Clock, Trash2
+    Target, Zap, Activity, ChevronRight, Clock, Trash2, FileImage, FileDown, File
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { ManualFindingModal } from "@/components/ManualFindingModal";
@@ -43,6 +44,7 @@ export default function ProjectDetails() {
     const { toast } = useToast();
     const [project, setProject] = useState<ProjectDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
 
     // Modal states
     const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -78,10 +80,6 @@ export default function ProjectDetails() {
             setLoading(false);
         }
     }, [id, navigate, toast]);
-
-    useEffect(() => {
-        if (id) fetchProject();
-    }, [id, fetchProject]);
 
     useEffect(() => {
         if (id) fetchProject();
@@ -166,6 +164,15 @@ export default function ProjectDetails() {
                     </div>
 
                     <div className="flex gap-3">
+                        <div className="relative group w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                            <Input
+                                placeholder="Search scans/reports..."
+                                className="pl-10 h-11 bg-black/40 border-white/10 rounded-xl focus:border-primary/50 transition-all font-mono text-xs"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                         <Button
                             variant="destructive"
                             className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 h-11 px-6 rounded-xl shadow-lg transition-all"
@@ -318,7 +325,11 @@ export default function ProjectDetails() {
                         </h3>
                         <div className="card-premium overflow-hidden border-none shadow-2xl">
                             <div className="p-0 max-h-[320px] overflow-y-auto custom-scrollbar bg-black/40">
-                                {project.scans.length > 0 ? project.scans.map((scan, i) => (
+                                {project.scans.length > 0 ? project.scans.filter(s =>
+                                    s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    (s.type || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    (s.status || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                ).map((scan, i) => (
                                     <div key={i} className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between hover:bg-white/[0.03] transition-colors group cursor-pointer" onClick={() => navigate('/scanner')}>
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center group-hover:border-primary/40 transition-colors">
@@ -336,25 +347,56 @@ export default function ProjectDetails() {
                                             </Badge>
                                             <div className="text-[9px] font-mono text-muted-foreground/40">{new Date(scan.startedAt).toLocaleTimeString()}</div>
                                         </div>
-                                        <motion.button
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.9 }}
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (confirm('Delete this scan record?')) {
+                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
                                                     try {
-                                                        await scannerApi.deleteScan(scan.id);
-                                                        toast({ title: "Scan Deleted", description: "History updated." });
-                                                        refreshProject();
+                                                        const response = await fetch(`${Config.API_URL}/api/reports/raw/${id}/${scan.id}`);
+                                                        if (!response.ok) throw new Error('Raw scan results not available');
+                                                        
+                                                        const blob = await response.blob();
+                                                        const url = window.URL.createObjectURL(blob);
+                                                        const a = document.createElement('a');
+                                                        a.href = url;
+                                                        a.download = `raw_scan_${scan.id}.json`;
+                                                        document.body.appendChild(a);
+                                                        a.click();
+                                                        window.URL.revokeObjectURL(url);
+                                                        document.body.removeChild(a);
+                                                        toast({ title: "Downloaded", description: "Raw scan results downloaded." });
                                                     } catch (err: any) {
-                                                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                                                        toast({ title: "Download Failed", description: err.message, variant: "destructive" });
                                                     }
-                                                }
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-all"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </motion.button>
+                                                }}
+                                                className="h-8 w-8 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                                                title="Download Raw JSON"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </Button>
+                                            <motion.button
+                                                whileHover={{ scale: 1.1 }}
+                                                whileTap={{ scale: 0.9 }}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('Delete this scan record?')) {
+                                                        try {
+                                                            await scannerApi.deleteScan(scan.id);
+                                                            toast({ title: "Scan Deleted", description: "History updated." });
+                                                            refreshProject();
+                                                        } catch (err: any) {
+                                                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                                                        }
+                                                    }
+                                                }}
+                                                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground/30 hover:text-destructive transition-all"
+                                                title="Delete Scan"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </motion.button>
+                                        </div>
                                     </div>
                                 )) : (
                                     <div className="p-16 text-center text-muted-foreground/30 flex flex-col items-center">
@@ -374,7 +416,9 @@ export default function ProjectDetails() {
                         </h3>
                         <div className="card-premium overflow-hidden border-none shadow-2xl">
                             <div className="p-0 max-h-[320px] overflow-y-auto custom-scrollbar bg-black/40">
-                                {project.reports.length > 0 ? project.reports.map((rep, i) => (
+                                {project.reports.length > 0 ? project.reports.filter(r =>
+                                    r.filename.toLowerCase().includes(searchQuery.toLowerCase())
+                                ).map((rep, i) => (
                                     <div key={i} className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between hover:bg-white/[0.03] transition-colors cursor-pointer group">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
@@ -405,7 +449,102 @@ export default function ProjectDetails() {
                     </div>
                 </div>
 
+                {/* ── EVIDENCE VAULT ── */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                            <Paperclip className="w-4 h-4 text-slate-400" />
+                            Evidence Vault
+                            <span className="ml-2 px-2 py-0.5 bg-slate-500/10 border border-slate-500/20 rounded-md text-[10px] font-black text-slate-400">
+                                {project.evidence?.length || 0} FILES
+                            </span>
+                        </h3>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEvidenceModalOpen(true)}
+                            className="h-7 px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white border border-white/5 hover:border-slate-500/40 rounded-lg"
+                        >
+                            <Paperclip className="w-3 h-3 mr-1.5" /> Upload More
+                        </Button>
+                    </div>
+                    <div className="card-premium overflow-hidden border-none shadow-2xl">
+                        <div className="p-0 max-h-[280px] overflow-y-auto custom-scrollbar bg-black/40">
+                            {(project.evidence?.length || 0) > 0 ? project.evidence.map((ev, i) => {
+                                const ext = ev.filename.split('.').pop()?.toLowerCase() || '';
+                                const isImg = ['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext);
+                                const isDoc = ['pdf','doc','docx','txt','md','csv','json','xml'].includes(ext);
+                                const handleDownloadEvidence = () => {
+                                    const fileUrl = `${Config.API_URL}/api/projects/${project.id}/evidence/${encodeURIComponent(ev.filename)}`;
+                                    const a = document.createElement('a');
+                                    a.href = fileUrl;
+                                    a.target = '_blank';
+                                    a.rel = 'noopener noreferrer';
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                };
+                                const handleDeleteEvidence = async () => {
+                                    if (!window.confirm(`Are you sure you want to delete "${ev.filename}"?`)) return;
+                                    try {
+                                        const url = `${Config.API_URL}/api/projects/${project.id}/evidence/${encodeURIComponent(ev.filename)}`;
+                                        const resp = await fetch(url, { method: 'DELETE' });
+                                        if (!resp.ok) throw new Error('Failed to delete file');
+                                        
+                                        toast({ title: "Success", description: "Evidence deleted successfully." });
+                                        refreshProject(); 
+                                    } catch (err: any) {
+                                        toast({ variant: "destructive", title: "Error", description: err.message });
+                                    }
+                                };
+                                const formatBytes = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(2)} MB`;
+                                return (
+                                    <div key={i} className="px-6 py-4 border-b border-white/[0.05] flex items-center justify-between hover:bg-white/[0.03] transition-colors group">
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-500/10 border border-slate-500/20 flex items-center justify-center shrink-0">
+                                                {isImg ? <FileImage className="w-4 h-4 text-blue-400" /> : isDoc ? <FileText className="w-4 h-4 text-orange-400" /> : <File className="w-4 h-4 text-slate-400" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate max-w-[260px]">{ev.filename}</div>
+                                                <div className="text-[9px] font-mono text-muted-foreground/50 flex gap-3">
+                                                    <span>{formatBytes(ev.size)}</span>
+                                                    <span>{new Date(ev.uploadedAt).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleDownloadEvidence}
+                                                className="h-8 px-4 bg-slate-700 text-white rounded-lg hover:bg-slate-600 shadow-lg transition-all font-bold text-[10px]"
+                                            >
+                                                <FileDown className="w-3.5 h-3.5 mr-1.5" /> DOWNLOAD
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleDeleteEvidence}
+                                                className="h-8 px-3 bg-red-900/40 text-red-100 border border-red-500/30 rounded-lg hover:bg-red-800 shadow-lg transition-all font-bold text-[10px]"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            }) : (
+                                <div className="p-16 text-center text-muted-foreground/30 flex flex-col items-center">
+                                    <Paperclip className="w-12 h-12 mb-4 opacity-5" />
+                                    <span className="text-xs uppercase tracking-widest font-black">No Evidence Uploaded</span>
+                                    <span className="text-[10px] mt-2 text-muted-foreground/20">Use the [C] Evidence Storage button above to upload files</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* ── MODALS ── */}
+
                 <ReportGenerator
                     projectId={project.id}
                     projectTitle={project.title}

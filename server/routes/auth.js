@@ -10,6 +10,7 @@ const router = express.Router();
 const authBridge = require('../services/authBridge');
 const { requireModule } = require('../middleware/saasMiddleware');
 const localAuth = require('../db/localAuth');
+const { validateEmail, validateUsername, sanitizeString } = require('../utils/validation');
 
 // ── Register ─────────────────────────────────────────────────────────────────
 router.post('/auth/register', async (req, res) => {
@@ -20,6 +21,15 @@ router.post('/auth/register', async (req, res) => {
 
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        const cleanEmail = sanitizeString(email, 100);
+        if (!validateEmail(cleanEmail)) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
+
+        if (username && !validateUsername(sanitizeString(username, 30))) {
+            return res.status(400).json({ error: 'Invalid username format (3-30 chars, alphanumeric)' });
         }
 
         // Password strength validation
@@ -58,6 +68,10 @@ router.post('/auth/login', async (req, res) => {
         const { email, password } = req.body || {};
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        if (!validateEmail(sanitizeString(email, 100))) {
+            return res.status(400).json({ error: 'Invalid email format' });
         }
 
         const { user, token } = await localAuth.loginUser(email, password);

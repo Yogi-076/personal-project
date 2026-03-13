@@ -1,4 +1,32 @@
 const supabase = require('../utils/supabaseClient');
+const localAuth = require('../db/localAuth');
+
+/**
+ * optionalAuth — silently extracts `userId` from the JWT and attaches it to `req.userId`.
+ * Never blocks a request. Falls back to 'anonymous' for demo / unauthenticated users.
+ * Use this on every data-access route to enable per-user data isolation.
+ */
+const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        req.userId = 'anonymous';
+        return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token || token === 'mock-token') {
+        req.userId = 'anonymous';
+        return next();
+    }
+
+    try {
+        const decoded = localAuth.verifyToken(token);
+        req.userId = decoded ? decoded.id : 'anonymous';
+    } catch (e) {
+        req.userId = 'anonymous';
+    }
+    return next();
+};
 
 /**
  * Middleware to check if the user's organization has access to a specific module.
@@ -15,6 +43,20 @@ const requireModule = (moduleId) => async (req, res, next) => {
 
     // Bypass for Demo / Mock user (matches frontend demoLogin)
     if (token === 'mock-token') {
+        return next();
+    }
+
+    // If running in local storage mode (no real Supabase backend keys), verify JWT locally
+    if (process.env.STORAGE_MODE === 'local') {
+        try {
+            const decoded = localAuth.verifyToken(token);
+            if (decoded) {
+                req.user = decoded;
+                return next();
+            }
+        } catch (e) { /* fall through */ }
+        // Valid local token check failed — still allow in local mode
+        console.warn(`[SaaS] Local JWT invalid for module: ${moduleId}. Allowing in local mode.`);
         return next();
     }
 
@@ -86,5 +128,5 @@ const requireModule = (moduleId) => async (req, res, next) => {
     }
 };
 
-module.exports = { requireModule };
+module.exports = { requireModule, optionalAuth };
 

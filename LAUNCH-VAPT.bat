@@ -20,7 +20,7 @@ echo [3/5] Starting Pluto AI Gateway (Port 18789)...
 :: Ensure we call the dedicated AI launcher which handles its own env vars
 start "VAPT_AI_Gateway" cmd /k "title VAPT AI Gateway && call start-pluto.bat"
 
-echo [4/5] Starting Frontend Interface (Port 8081)...
+echo [4/5] Starting Frontend Interface (Port 8080)...
 :: Using dev:frontend to prevent backend duplication
 start "VAPT_Frontend_Interface" cmd /k "title VAPT Frontend && npm run dev:frontend"
 
@@ -30,14 +30,14 @@ timeout /t 12
 
 echo ===================================================
 echo   SYSTEM READY
-echo   Local:   http://localhost:8081/scanner
-echo   Network: http://192.168.0.121:8081/scanner
+echo   Local:   http://localhost:8080/scanner
+echo   Network: http://192.168.0.121:8080/scanner
 echo ===================================================
 echo.
 echo NOTE: If other laptops cannot connect, ensure port 3001
-echo and 8081 are allowed in your Windows Firewall.
+echo and 8080 are allowed in your Windows Firewall.
 echo.
 echo Opening Dashboard...
-start http://192.168.0.121:8081/scanner
+start http://localhost:8080/scanner
 
 pause

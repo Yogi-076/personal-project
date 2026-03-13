@@ -4,13 +4,19 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const storage = require('../utils/storage');
+const { validateEmail, validateUrl, sanitizeString } = require('../utils/validation');
 
 // The base directory for all projects
 const PROJECTS_DIR = path.join(__dirname, '..', 'data', 'projects');
+const SHARED_EVIDENCE_DIR = path.join(__dirname, '..', 'data', 'shared-evidence');
 
-// Initialize projects directory
+// Initialize projects and shared evidence directories
 if (!fs.existsSync(PROJECTS_DIR)) {
     fs.mkdirSync(PROJECTS_DIR, { recursive: true });
+}
+if (!fs.existsSync(SHARED_EVIDENCE_DIR)) {
+    fs.mkdirSync(SHARED_EVIDENCE_DIR, { recursive: true });
+    console.log('[Projects] Created shared evidence directory:', SHARED_EVIDENCE_DIR);
 }
 
 // Helper: Get project path
@@ -42,9 +48,12 @@ try { multer = require('multer'); } catch (e) {
 
 const evidenceStorage = multer ? multer.diskStorage({
     destination: (req, file, cb) => {
-        const evidenceDir = path.join(PROJECTS_DIR, req.params.id, 'evidence');
-        fs.mkdirSync(evidenceDir, { recursive: true });
-        cb(null, evidenceDir);
+        // Support shared evidence when projectId is 'shared'
+        const dest = req.params.id === 'shared'
+            ? SHARED_EVIDENCE_DIR
+            : path.join(PROJECTS_DIR, req.params.id, 'evidence');
+        fs.mkdirSync(dest, { recursive: true });
+        cb(null, dest);
     },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname);
@@ -68,27 +77,43 @@ router.post('/', (req, res) => {
             return res.status(400).json({ error: 'Title, Company Name, and Target URLs are required.' });
         }
 
+        const cleanTitle = sanitizeString(title, 100);
+        const cleanCompanyName = sanitizeString(companyName, 100);
+        const cleanTesterName = sanitizeString(testerName, 100);
+        const cleanTesterEmail = sanitizeString(testerEmail, 100);
+
+        if (!validateEmail(cleanTesterEmail)) {
+            return res.status(400).json({ error: 'Invalid tester email format' });
+        }
+
+        const urlList = Array.isArray(targetUrls) ? targetUrls : [targetUrls];
+        for (const url of urlList) {
+            if (!validateUrl(url)) {
+                return res.status(400).json({ error: `Invalid target URL: ${url}` });
+            }
+        }
+
         const year = new Date().getFullYear();
         const randId = Math.floor(1000 + Math.random() * 9000);
         const projectId = `VAPT-${year}-${randId}`;
 
         const projectPath = getProjectPath(projectId);
         fs.mkdirSync(projectPath, { recursive: true });
-        fs.mkdirSync(path.join(projectPath, 'scans'));
-        fs.mkdirSync(path.join(projectPath, 'findings'));
-        fs.mkdirSync(path.join(projectPath, 'reports'));
-        fs.mkdirSync(path.join(projectPath, 'evidence'));
+        fs.mkdirSync(path.join(projectPath, 'scans'), { recursive: true });
+        fs.mkdirSync(path.join(projectPath, 'findings'), { recursive: true });
+        fs.mkdirSync(path.join(projectPath, 'reports'), { recursive: true });
+        fs.mkdirSync(path.join(projectPath, 'evidence'), { recursive: true });
 
         const projectInfo = {
             id: projectId,
-            title,
-            description,
-            companyName,
-            targetUrls,
+            title: cleanTitle,
+            description: sanitizeString(description, 2000),
+            companyName: cleanCompanyName,
+            targetUrls: urlList,
             startDate,
             endDate,
-            testerName,
-            testerEmail,
+            testerName: cleanTesterName,
+            testerEmail: cleanTesterEmail,
             engagementType,
             status: 'active',
             createdAt: new Date().toISOString(),
@@ -378,7 +403,9 @@ if (uploadMiddleware) {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/:id/evidence', (req, res) => {
     try {
-        const evidenceDir = path.join(PROJECTS_DIR, req.params.id, 'evidence');
+        const evidenceDir = req.params.id === 'shared'
+            ? SHARED_EVIDENCE_DIR
+            : path.join(PROJECTS_DIR, req.params.id, 'evidence');
         if (!fs.existsSync(evidenceDir)) return res.json([]);
         const files = fs.readdirSync(evidenceDir).map(f => {
             const stats = fs.statSync(path.join(evidenceDir, f));
@@ -387,6 +414,62 @@ router.get('/:id/evidence', (req, res) => {
         res.json(files);
     } catch (err) {
         res.status(500).json({ error: 'Failed to list evidence' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/projects/:id/evidence/:filename — Download/View Evidence File
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/:id/evidence/:filename', (req, res) => {
+    try {
+        const { id, filename } = req.params;
+        // Sanitize filename to prevent path traversal
+        const safe = path.basename(decodeURIComponent(filename));
+        const evidenceDir = id === 'shared'
+            ? SHARED_EVIDENCE_DIR
+            : path.join(PROJECTS_DIR, id, 'evidence');
+        const filePath = path.join(evidenceDir, safe);
+        console.log('[Evidence Download] Requested:', filePath);
+        if (!fs.existsSync(filePath)) {
+            console.warn('[Evidence Download] File not found:', filePath);
+            return res.status(404).json({ error: 'Evidence file not found' });
+        }
+        res.download(filePath, safe, (err) => {
+            if (err) {
+                console.error('[Evidence Download] Stream error:', err.message);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Download failed' });
+                }
+            }
+        });
+    } catch (err) {
+        console.error('[Evidence Download] Error:', err);
+        res.status(500).json({ error: 'Failed to serve evidence file' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/projects/:id/evidence/:filename — Delete Evidence File
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete('/:id/evidence/:filename', (req, res) => {
+    try {
+        const { id, filename } = req.params;
+        const safe = path.basename(decodeURIComponent(filename));
+        const evidenceDir = id === 'shared'
+            ? SHARED_EVIDENCE_DIR
+            : path.join(PROJECTS_DIR, id, 'evidence');
+        const filePath = path.join(evidenceDir, safe);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Evidence file not found' });
+        }
+
+        fs.unlinkSync(filePath);
+        console.log('[Evidence Delete] Removed:', filePath);
+        res.json({ message: 'Evidence file deleted successfully' });
+    } catch (err) {
+        console.error('[Evidence Delete] Error:', err);
+        res.status(500).json({ error: 'Failed to delete evidence file' });
     }
 });
 

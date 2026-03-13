@@ -16,6 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { validateUrl, validateEmail, sanitizeString } from "@/lib/validation";
+
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Project {
     id: string;
@@ -37,6 +40,7 @@ interface Project {
 export default function Projects() {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -44,20 +48,26 @@ export default function Projects() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    // Dynamic dates
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + 14); // Default to 2-week engagement
+
     // New Project Form State
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         companyName: "",
-        targetUrls: "",
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: "",
-        testerName: "",
-        testerEmail: "",
+        targetUrls: [""], // Dynamic array instead of string
+        startDate: today.toISOString().split('T')[0],
+        endDate: futureDate.toISOString().split('T')[0],
+        testerName: user?.email ? user.email.split('@')[0] : "", // Auto-fill from auth
+        testerEmail: user?.email || "",
         engagementType: "Black Box",
         username: "",
         password: ""
     });
+
 
     useEffect(() => {
         fetchProjects();
@@ -82,18 +92,53 @@ export default function Projects() {
         setIsSubmitting(true);
 
         try {
+            const cleanTitle = sanitizeString(formData.title, 100);
+            const cleanCompanyName = sanitizeString(formData.companyName, 100);
+            const cleanTesterName = sanitizeString(formData.testerName, 100);
+            const cleanTesterEmail = sanitizeString(formData.testerEmail, 100);
+            const cleanDescription = sanitizeString(formData.description, 2000);
+
+            if (!cleanTitle || !cleanCompanyName || !cleanTesterName) {
+                setIsSubmitting(false);
+                return toast({ variant: "destructive", title: "Missing Data", description: "Please fill in all required fields." });
+            }
+
+            if (cleanTesterEmail && !validateEmail(cleanTesterEmail)) {
+                setIsSubmitting(false);
+                return toast({ variant: "destructive", title: "Invalid Email", description: "Tester email format is incorrect." });
+            }
+
+            const urlList = formData.targetUrls.map(s => s.trim()).filter(s => s);
+            if (urlList.length === 0) {
+                setIsSubmitting(false);
+                return toast({ variant: "destructive", title: "Missing Scope", description: "At least one target URL is required." });
+            }
+
+            for (const url of urlList) {
+                if (!validateUrl(url)) {
+                    setIsSubmitting(false);
+                    return toast({ variant: "destructive", title: "Invalid URL", description: `Malformed target URL: ${url}` });
+                }
+            }
+
+
+            if (formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
+                setIsSubmitting(false);
+                return toast({ variant: "destructive", title: "Invalid Dates", description: "Deadline cannot be before the start date." });
+            }
+
             const payload = {
-                title: formData.title,
-                description: formData.description,
-                companyName: formData.companyName,
-                targetUrls: formData.targetUrls.split(',').map(s => s.trim()),
+                title: cleanTitle,
+                description: cleanDescription,
+                companyName: cleanCompanyName,
+                targetUrls: urlList,
                 startDate: formData.startDate,
                 endDate: formData.endDate,
-                testerName: formData.testerName,
-                testerEmail: formData.testerEmail,
+                testerName: cleanTesterName,
+                testerEmail: cleanTesterEmail,
                 engagementType: formData.engagementType,
                 credentials: {
-                    username: formData.username,
+                    username: sanitizeString(formData.username, 50),
                     password: formData.password
                 }
             };
@@ -113,11 +158,12 @@ export default function Projects() {
                 setIsCreateModalOpen(false);
                 fetchProjects();
                 setFormData({
-                    title: "", description: "", companyName: "", targetUrls: "",
-                    startDate: new Date().toISOString().split('T')[0], endDate: "",
-                    testerName: "", testerEmail: "", engagementType: "Black Box",
+                    title: "", description: "", companyName: "", targetUrls: [""],
+                    startDate: today.toISOString().split('T')[0], endDate: futureDate.toISOString().split('T')[0],
+                    testerName: user?.email ? user.email.split('@')[0] : "", testerEmail: user?.email || "", engagementType: "Black Box",
                     username: "", password: ""
                 });
+
             } else {
                 const err = await res.json();
                 toast({
@@ -173,9 +219,9 @@ export default function Projects() {
     };
 
     const filteredProjects = projects.filter(p =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.id.toLowerCase().includes(searchQuery.toLowerCase())
+        (p.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.companyName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.id || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const stats = {
@@ -197,15 +243,22 @@ export default function Projects() {
                         { label: "Analysis Runs", value: stats.scans, icon: Target, color: "text-blue-400", bg: "bg-blue-500/10" },
                         { label: "Executive Reports", value: stats.reports, icon: ShieldCheck, color: "text-violet-400", bg: "bg-violet-500/10" }
                     ].map((stat, i) => (
-                        <div key={i} className="card-premium p-5 flex items-center gap-4 group">
-                            <div className={`w-12 h-12 rounded-xl border border-white/5 flex items-center justify-center ${stat.bg} group-hover:scale-110 transition-transform duration-300`}>
-                                <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1, duration: 0.4 }}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            className="card-premium p-5 flex items-center gap-4 group cursor-pointer"
+                        >
+                            <div className={`w-12 h-12 rounded-xl border border-white/5 flex items-center justify-center ${stat.bg} group-hover:scale-110 shadow-lg group-hover:shadow-primary/5 transition-all duration-300`}>
+                                <stat.icon className={`w-6 h-6 ${stat.color} group-hover:animate-pulse`} />
                             </div>
                             <div>
-                                <div className="text-3xl font-black tabular-nums animate-count">{stat.value}</div>
-                                <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground opacity-70">{stat.label}</div>
+                                <div className={`text-3xl font-black tabular-nums tracking-tighter ${stat.color}`}>{stat.value}</div>
+                                <div className="text-[10px] uppercase font-black tracking-widest text-muted-foreground opacity-50">{stat.label}</div>
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
 
@@ -264,10 +317,64 @@ export default function Projects() {
                                                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Company Name</Label>
                                                 <Input required placeholder="Ex: Acme Global Inc." className="bg-white/[0.03] border-white/10 h-10 px-4 rounded-xl" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Target Scope (URLs)</Label>
-                                                <Input required placeholder="https://app.target.com" className="bg-white/[0.03] border-white/10 h-10 px-4 rounded-xl font-mono text-sm" value={formData.targetUrls} onChange={e => setFormData({ ...formData, targetUrls: e.target.value })} />
+                                            <div className="space-y-1.5 p-4 rounded-xl border border-white/10 bg-white/[0.01]">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                                        <Globe className="w-4 h-4 text-primary" /> Target Scope (URLs)
+                                                    </Label>
+                                                    <Badge variant="outline" className="text-[9px] font-mono border-white/10">{formData.targetUrls.length} Target(s)</Badge>
+                                                </div>
+                                                <div className="space-y-3 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                                                    <AnimatePresence>
+                                                        {formData.targetUrls.map((url, i) => (
+                                                            <motion.div
+                                                                key={i}
+                                                                initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                                                                animate={{ opacity: 1, height: "auto", scale: 1 }}
+                                                                exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                                                                className="relative flex items-center gap-2"
+                                                            >
+                                                                <Input 
+                                                                    required={i === 0} 
+                                                                    placeholder="https://app.target.com" 
+                                                                    className="bg-black/40 border-white/10 h-10 px-4 rounded-lg font-mono text-sm flex-1 focus:border-primary/50 transition-colors" 
+                                                                    value={url} 
+                                                                    onChange={e => {
+                                                                        const newUrls = [...formData.targetUrls];
+                                                                        newUrls[i] = e.target.value;
+                                                                        setFormData({ ...formData, targetUrls: newUrls });
+                                                                    }} 
+                                                                />
+                                                                {formData.targetUrls.length > 1 && (
+                                                                    <Button 
+                                                                        type="button"
+                                                                        variant="ghost" 
+                                                                        size="icon" 
+                                                                        className="h-10 w-10 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                                                                        onClick={() => {
+                                                                            const newUrls = [...formData.targetUrls];
+                                                                            newUrls.splice(i, 1);
+                                                                            setFormData({ ...formData, targetUrls: newUrls });
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </motion.div>
+                                                        ))}
+                                                    </AnimatePresence>
+                                                </div>
+                                                <Button 
+                                                    type="button" 
+                                                    variant="secondary" 
+                                                    size="sm" 
+                                                    className="w-full mt-2 h-9 border border-white/5 bg-white/5 hover:bg-white/10 text-xs font-semibold rounded-lg text-primary"
+                                                    onClick={() => setFormData({ ...formData, targetUrls: [...formData.targetUrls, ""] })}
+                                                >
+                                                    <PlusCircle className="w-3.5 h-3.5 mr-2" /> Add Target URL
+                                                </Button>
                                             </div>
+
                                         </div>
 
                                         <div className="space-y-4">
@@ -359,89 +466,102 @@ export default function Projects() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredProjects.map((project, idx) => (
-                            <motion.div
-                                key={project.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                className={`card-premium group relative ${project.status === 'active' ? 'accent-bar-active' : 'accent-bar-default'
-                                    }`}
-                            >
-                                <div className="p-6 space-y-5">
-                                    {/* Project Header */}
-                                    <div className="flex justify-between items-start gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors truncate">
-                                                {project.title}
-                                            </h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-[10px] font-mono font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded">#{project.id.slice(0, 8)}</span>
-                                                <span className="text-[10px] font-mono text-muted-foreground">{project.companyName}</span>
+                        <AnimatePresence mode="popLayout">
+                            {filteredProjects.map((project, idx) => (
+                                <motion.div
+                                    key={project.id}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                    transition={{
+                                        delay: idx * 0.05,
+                                        type: "spring",
+                                        stiffness: 260,
+                                        damping: 20
+                                    }}
+                                    className={`card-premium group relative cursor-pointer overflow-hidden ${project.status === 'active' ? 'accent-bar-active' : 'accent-bar-default'
+                                        }`}
+                                    whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                                >
+                                    {/* Subtle Background Shimmer */}
+                                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
+                                    <div className="p-6 space-y-5 relative z-10">
+                                        {/* Project Header */}
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors truncate tracking-tight">
+                                                    {project.title}
+                                                </h3>
+                                                <div className="flex items-center gap-2 mt-1.5">
+                                                    <span className="text-[10px] font-black text-primary px-1.5 py-0.5 bg-primary/10 rounded uppercase tracking-tighter">#{project.id.slice(0, 8)}</span>
+                                                    <span className="text-[10px] font-mono text-muted-foreground font-bold">{project.companyName}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className={`h-6 text-[10px] border-none font-black uppercase tracking-widest px-3 ${project.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'
+                                                    }`}>
+                                                    {project.status}
+                                                </Badge>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-90"
+                                                    onClick={(e) => handleDeleteProject(project.id, e)}
+                                                    disabled={deletingId === project.id}
+                                                    title="Delete Project"
+                                                >
+                                                    {deletingId === project.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </Button>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={`h-6 text-[10px] border-none font-black uppercase tracking-widest px-3 ${project.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'
-                                                }`}>
-                                                {project.status}
-                                            </Badge>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                                onClick={(e) => handleDeleteProject(project.id, e)}
-                                                disabled={deletingId === project.id}
-                                                title="Delete Project"
-                                            >
-                                                {deletingId === project.id ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="w-4 h-4" />
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </div>
 
-                                    {/* Target Mono Box */}
-                                    <div className="relative group/tag">
-                                        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent scale-x-0 group-hover/tag:scale-x-100 transition-transform duration-500" />
-                                        <div className="p-3 rounded-xl bg-black/40 border border-white/5 flex items-center gap-3">
-                                            <Target className="w-4 h-4 text-primary opacity-60 group-hover/tag:opacity-100 transition-opacity" />
-                                            <span className="text-xs font-mono text-foreground/80 truncate">
-                                                {Array.isArray(project.targetUrls) ? project.targetUrls[0] : project.targetUrls}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Stats Grid */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 group-hover:bg-primary/5 transition-colors">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Activity className="w-3.5 h-3.5 text-blue-400" />
-                                                <span className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground">Scans</span>
+                                        {/* Target Mono Box */}
+                                        <div className="relative group/tag">
+                                            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent scale-x-0 group-hover/tag:scale-x-100 transition-transform duration-500" />
+                                            <div className="p-3 rounded-xl bg-black/60 border border-white/5 flex items-center gap-3 transition-colors group-hover/tag:border-primary/20">
+                                                <Target className="w-4 h-4 text-primary opacity-40 group-hover/tag:opacity-100 transition-all group-hover/tag:scale-110" />
+                                                <span className="text-xs font-mono text-foreground/70 truncate group-hover/tag:text-foreground">
+                                                    {Array.isArray(project.targetUrls) ? project.targetUrls[0] : project.targetUrls}
+                                                </span>
                                             </div>
-                                            <div className="text-2xl font-black font-mono text-blue-400">{project.scansCount || 0}</div>
                                         </div>
-                                        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 group-hover:bg-primary/5 transition-colors">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <FileText className="w-3.5 h-3.5 text-violet-400" />
-                                                <span className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground">Reports</span>
-                                            </div>
-                                            <div className="text-2xl font-black font-mono text-violet-400">{project.reportsCount || 0}</div>
-                                        </div>
-                                    </div>
 
-                                    {/* Enter Button */}
-                                    <Button
-                                        className="w-full h-11 rounded-xl bg-white/[0.05] border border-white/5 group-hover:btn-cyber group-hover:shadow-lg group-hover:shadow-primary/10 transition-all font-bold text-sm"
-                                        onClick={() => navigate(`/projects/${project.id}`)}
-                                    >
-                                        ENTER CONSOLE
-                                        <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        ))}
+                                        {/* Stats Grid */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 group-hover:bg-primary/5 transition-all group-hover:border-primary/10">
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <Activity className="w-3.5 h-3.5 text-blue-400/70" />
+                                                    <span className="text-[9px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Scans</span>
+                                                </div>
+                                                <div className="text-2xl font-black font-mono text-blue-400">{project.scansCount || 0}</div>
+                                            </div>
+                                            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 group-hover:bg-primary/5 transition-all group-hover:border-primary/10">
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <FileText className="w-3.5 h-3.5 text-violet-400/70" />
+                                                    <span className="text-[9px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Reports</span>
+                                                </div>
+                                                <div className="text-2xl font-black font-mono text-violet-400">{project.reportsCount || 0}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Enter Button */}
+                                        <Button
+                                            className="w-full h-11 rounded-xl bg-white/[0.03] border border-white/5 group-hover:btn-cyber group-hover:shadow-2xl group-hover:shadow-primary/20 transition-all font-black text-[11px] tracking-widest"
+                                            onClick={() => navigate(`/projects/${project.id}`)}
+                                        >
+                                            ACCESS CONTROL PANEL
+                                            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1.5 transition-transform" />
+                                        </Button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
                     </div>
                 )}
             </div>

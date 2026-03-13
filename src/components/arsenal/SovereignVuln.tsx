@@ -32,6 +32,7 @@ export const SovereignVuln = () => {
     const { toast } = useToast();
     const [banner, setBanner] = useState('');
     const [analyzing, setAnalyzing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [result, setResult] = useState<AnalysisResult | null>(null);
 
     const handleAnalyze = async () => {
@@ -137,11 +138,22 @@ export const SovereignVuln = () => {
             {/* Creating Results Feed */}
             <div className="lg:col-span-8">
                 <Card className="h-full flex flex-col border-cyber-purple/20 bg-background/60 backdrop-blur-2xl overflow-hidden">
-                    <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/10">
+                    <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/10 flex-wrap gap-4">
                         <div className="flex items-center gap-3">
                             <Activity className="w-5 h-5 text-cyber-purple" />
                             <h3 className="font-bold text-lg tracking-tight">Intelligence Feed</h3>
                         </div>
+                        {result && (
+                            <div className="relative w-full md:w-64 group">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-cyber-purple transition-colors" />
+                                <Input 
+                                    placeholder="Search CVE or vulnerability..." 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-8 h-8 bg-black/40 border-white/10 text-xs font-mono focus:border-cyber-purple/50"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <CardContent className="flex-1 p-0 overflow-hidden relative">
@@ -162,14 +174,19 @@ export const SovereignVuln = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        result.critical_vulnerabilities.map((vuln, i) => (
-                                            <motion.div
-                                                key={i}
-                                                initial={{ opacity: 0, x: 20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: i * 0.1 }}
-                                                className="rounded-lg border border-red-500/30 bg-red-950/10 overflow-hidden"
-                                            >
+                                        result.critical_vulnerabilities
+                                            .filter(v => 
+                                                (v.cve_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                (v.severity || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((vuln, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    initial={{ opacity: 0, x: 20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: i * 0.1 }}
+                                                    className="rounded-lg border border-red-500/30 bg-red-950/10 overflow-hidden"
+                                                >
                                                 <div className="p-4 bg-red-950/30 border-b border-red-500/20 flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
                                                         <Bug className="w-5 h-5 text-red-500" />

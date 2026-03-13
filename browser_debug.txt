@@ -1,0 +1,9 @@
+Navigating to http://localhost:8081/scanner...
+BROWSER_LOG: [vite] connecting...
+BROWSER_LOG: [vite] connected.
+BROWSER_LOG: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+BROWSER_LOG: VAPT: Entry point reached. Mounting app...
+BROWSER_LOG: ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+BROWSER_LOG: ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+Title: VajraScan - VAPT Framework
+Body Text Snippet: 

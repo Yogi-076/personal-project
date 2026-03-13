@@ -6,11 +6,19 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   server: {
     host: true, // Listen on all network interfaces
-    port: 8081,
+    port: 8080,
     hmr: {
-      overlay: false,
+      overlay: true,
     },
     proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+      "/auth": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
       "/__moltbot__": {
         target: "http://localhost:18789",
         changeOrigin: true,

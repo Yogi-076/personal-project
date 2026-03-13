@@ -19,7 +19,7 @@ const Wappalyzer = require('wappalyzer');
 const { requireModule } = require('../middleware/saasMiddleware');
 const registry = require('../services/registry');
 
-const { sovereignShodan, gobusterService, forreconService } = registry;
+const { sovereignShodan, gobusterService, forreconService, arsenalService, gitleaksService } = registry;
 
 // Helper: strip ANSI terminal color codes from process output
 const stripAnsi = (str) =>
@@ -258,54 +258,24 @@ router.post('/api/tools/arsenal-pipeline', async (req, res) => {
     const { url, depth = 3, threads = 10, highCookie, lowCookie } = req.body || {};
     if (!url) return res.status(400).json({ error: 'Target URL is required' });
 
-    const domain = new URL(url).hostname;
-    const outputDir = path.join(__dirname, '..', '..', 'arsenal_output', domain);
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    try {
+        const scanId = arsenalService.startScan(url, { depth, threads, highCookie, lowCookie });
+        res.json({ scanId, message: 'Arsenal pipeline started' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
-    console.log(`[ARSENAL] Spawning Python Pipeline for: ${url}`);
+router.get('/api/tools/arsenal-pipeline/status/:scanId', (req, res) => {
+    const status = arsenalService.getScanStatus(req.params.scanId);
+    if (!status) return res.status(404).json({ error: 'Scan not found' });
+    res.json(status);
+});
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders(); // Send headers immediately to open the stream
-
-    const sendEvent = (obj) => {
-        try {
-            res.write('data: ' + JSON.stringify(obj) + '\n\n');
-            if (typeof res.flush === 'function') res.flush();
-        } catch (e) { /* client disconnected */ }
-    };
-
-    const args = ['arsenal-core/main.py', '-u', url, '-d', depth.toString(), '-t', threads.toString(), '-o', outputDir];
-    if (highCookie && lowCookie) args.push('--high-cookie', highCookie, '--low-cookie', lowCookie);
-
-    const child = spawn('python', args, {
-        cwd: path.join(__dirname, '..', '..'),
-        env: { ...process.env, PYTHONUNBUFFERED: '1' }
-    });
-
-    child.stdout.on('data', (data) => {
-        data.toString().split('\n').forEach(line => {
-            const clean = stripAnsi(line).trim();
-            if (clean) sendEvent({ type: 'log', data: clean });
-        });
-    });
-    child.stderr.on('data', (data) => {
-        data.toString().split('\n').forEach(line => {
-            const clean = stripAnsi(line).trim();
-            if (clean) sendEvent({ type: 'log', data: clean });
-        });
-    });
-    child.on('close', (code) => {
-        const reportPath = path.join(outputDir, 'arsenal_report.json');
-        let reportData = null;
-        if (fs.existsSync(reportPath)) {
-            try { reportData = JSON.parse(fs.readFileSync(reportPath, 'utf8')); } catch (e) { console.error('[ARSENAL] Error parsing report JSON:', e); }
-        }
-        sendEvent({ type: 'done', report: reportData, code });
-        res.end();
-    });
+router.post('/api/tools/arsenal-pipeline/stop', (req, res) => {
+    const stopped = arsenalService.stopScan(req.body?.scanId);
+    if (stopped) res.json({ message: 'Scan stopped' });
+    else res.status(400).json({ error: 'Scan not running or not found' });
 });
 
 // ── Arsenal Tool Dependency Check ─────────────────────────────────────────────
@@ -568,6 +538,24 @@ router.post('/api/tools/clickjacking/check', async (req, res) => {
         console.error('[Clickjacking] Scan Error:', error.message);
         res.status(502).json({ error: 'Target unreachable', details: error.message });
     }
+});
+
+// ── Gitleaks (Secret Scanning) ─────────────────────────────────────────────
+router.post('/api/tools/gitleaks/start', async (req, res) => {
+    const { url } = req.body || {};
+    if (!url) return res.status(400).json({ error: 'GitHub Repo URL required' });
+    try {
+        const scanId = await gitleaksService.startScan(url);
+        res.json({ scanId, message: 'Gitleaks scan started' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/api/tools/gitleaks/status/:scanId', (req, res) => {
+    const status = gitleaksService.getScanStatus(req.params.scanId);
+    if (!status) return res.status(404).json({ error: 'Scan not found' });
+    res.json(status);
 });
 
 module.exports = router;

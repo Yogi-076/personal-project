@@ -8,16 +8,17 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
-const { requireModule } = require('../middleware/saasMiddleware');
+const { requireModule, optionalAuth } = require('../middleware/saasMiddleware');
 const storage = require('../utils/storage');
 const ReportTransformer = require('../utils/reportTransformer');
 const authBridge = require('../services/authBridge');
+const { validateUrl, sanitizeString } = require('../utils/validation');
 const registry = require('../services/registry');
 
 const { wapitiService, zapService, katanaService, nucleiService, retireService, sastService, aiHunter } = registry;
 
 // ── Start Scan (Wapiti / ZAP / AI Hunter / Retire) ───────────────────────────
-router.post('/api/scan/start', requireModule('dast_core'), async (req, res) => {
+router.post('/api/scan/start', optionalAuth, requireModule('dast_core'), async (req, res) => {
     try {
         const { options = {}, projectId } = req.body || {};
         let target = (req.body.target || '').trim();
@@ -27,8 +28,10 @@ router.post('/api/scan/start', requireModule('dast_core'), async (req, res) => {
         // Auto-add scheme if missing (so users can type bare domains like testfire.net)
         if (!/^https?:\/\//i.test(target)) target = `http://${target}`;
 
-        // Validate the normalized URL
-        try { new URL(target); } catch (e) { return res.status(400).json({ error: `Invalid target URL: ${target}` }); }
+        target = sanitizeString(target, 500);
+        if (!validateUrl(target)) {
+            return res.status(400).json({ error: `Invalid target URL format: ${target}` });
+        }
 
         const scanId = uuidv4();
         const tool = (req.body.options?.tool || req.body.tool || 'wapiti').toLowerCase();
@@ -38,6 +41,7 @@ router.post('/api/scan/start', requireModule('dast_core'), async (req, res) => {
 
         const scan = {
             id: scanId, projectId, target,
+            userId: req.userId || 'anonymous',
             type: tool === 'zap' ? 'zap' : tool === 'retire' ? 'retire' : 'wapiti',
             status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [],
             options: { ...options, proxy, wafBypass: req.body.wafBypass, fullModules, spaMode },
@@ -102,7 +106,8 @@ router.post('/api/scan/start', requireModule('dast_core'), async (req, res) => {
                 }
 
                 clearInterval(monitorInterval);
-                const finalResults = (t === 'zap' || t === 'ai-hunter') ? results : ReportTransformer.transform(results);
+                // Unified transformation for all tools to ensure professional data mapping
+                const finalResults = ReportTransformer.transform(results);
 
                 await storage.updateScan(scanId, {
                     status: 'completed', completedAt: new Date().toISOString(),
@@ -114,7 +119,8 @@ router.post('/api/scan/start', requireModule('dast_core'), async (req, res) => {
                 if (monitorInterval) clearInterval(monitorInterval);
                 console.error('Scan error:', error);
                 let errorLogs = [];
-                try { errorLogs = (t === 'zap' ? zapService : wapitiService).getProgress(scanId).logs; } catch (e) { /* ignore */ }
+                // Bug Fix: 't' is not in scope here — use the outer 'tool' variable instead
+                try { errorLogs = (tool === 'zap' ? zapService : wapitiService).getProgress(scanId).logs; } catch (e) { /* ignore */ }
                 await storage.updateScan(scanId, { status: 'failed', error: error.message, progress: 0, logs: errorLogs });
             }
         })();
@@ -162,7 +168,7 @@ router.post('/api/scan/:id/stop', async (req, res) => {
 });
 
 // ── Start SAST Code Scan ──────────────────────────────────────────────────────
-router.post('/api/scan/sast/start', requireModule('sast_pro'), async (req, res) => {
+router.post('/api/scan/sast/start', optionalAuth, requireModule('sast_pro'), async (req, res) => {
     try {
         const { repoUrl: rawRepoUrl } = req.body || {};
         const repoUrl = rawRepoUrl?.trim();
@@ -171,6 +177,7 @@ router.post('/api/scan/sast/start', requireModule('sast_pro'), async (req, res) 
         const scanId = uuidv4();
         const scan = {
             id: scanId, target: repoUrl, type: 'sast', status: 'pending',
+            userId: req.userId || 'anonymous',
             startedAt: new Date().toISOString(), progress: 0, findings: [],
             summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }
         };
@@ -195,10 +202,16 @@ router.post('/api/scan/sast/start', requireModule('sast_pro'), async (req, res) 
 });
 
 // ── Get Scan Status ───────────────────────────────────────────────────────────
-router.get('/api/scan/status/:scanId', async (req, res) => {
+router.get('/api/scan/status/:scanId', optionalAuth, async (req, res) => {
     const { scanId } = req.params;
     const scan = await storage.getScan(scanId);
     if (!scan) return res.status(404).json({ error: 'Scan not found' });
+    // Relaxed ownership check: allow access if scan is 'anonymous' (demo/unauth users)
+    // or if the user explicitly owns the scan.
+    const scanOwner = scan.userId || 'anonymous';
+    if (scanOwner !== 'anonymous' && req.userId !== 'anonymous' && scanOwner !== req.userId) {
+        return res.status(403).json({ error: 'Access denied' });
+    }
 
     let progress = 0, logs = [];
     const type = scan.type;
@@ -226,20 +239,26 @@ router.get('/api/scan/status/:scanId', async (req, res) => {
 });
 
 // ── Get Scan Results ──────────────────────────────────────────────────────────
-router.get('/api/scan/results/:scanId', async (req, res) => {
+router.get('/api/scan/results/:scanId', optionalAuth, async (req, res) => {
     const scan = await storage.getScan(req.params.scanId);
     if (!scan) return res.status(404).json({ error: 'Scan not found' });
+    // Relaxed ownership check: allow access if scan is 'anonymous' (demo/unauth users)
+    // or if the user explicitly owns the scan.
+    const scanOwner = scan.userId || 'anonymous';
+    if (scanOwner !== 'anonymous' && req.userId !== 'anonymous' && scanOwner !== req.userId) {
+        return res.status(403).json({ error: 'Access denied' });
+    }
     res.json(scan);
 });
 
 // ── Advanced DAST Scan (All Wapiti Modules) ───────────────────────────────────
-router.post('/api/scan/dast/start', requireModule('dast_advanced'), async (req, res) => {
+router.post('/api/scan/dast/start', optionalAuth, requireModule('dast_advanced'), async (req, res) => {
     try {
         const { target } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'dast', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'dast', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         wapitiService.scan(target, {}, scanId)
             .then(async wapitiResults => {
@@ -258,16 +277,19 @@ router.post('/api/scan/dast/start', requireModule('dast_advanced'), async (req, 
 });
 
 // ── OWASP ZAP Scan ────────────────────────────────────────────────────────────
-router.post('/api/scan/zap/start', requireModule('dast_advanced'), async (req, res) => {
+router.post('/api/scan/zap/start', optionalAuth, requireModule('dast_advanced'), async (req, res) => {
     try {
         const { target } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'zap', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'zap', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         zapService.scan(target, {}, scanId)
-            .then(async results => { await storage.updateScan(scanId, { status: 'completed', completedAt: new Date().toISOString(), findings: results.findings, summary: results.summary, progress: 100 }); })
+            .then(async results => {
+                const transformed = ReportTransformer.transform(results);
+                await storage.updateScan(scanId, { status: 'completed', completedAt: new Date().toISOString(), findings: transformed.findings, summary: transformed.summary, progress: 100 });
+            })
             .catch(async error => { await storage.updateScan(scanId, { status: 'failed', error: error.message, progress: 0 }); });
 
         res.json({ scanId, message: 'OWASP ZAP Scan Initiated', status: 'pending' });
@@ -278,7 +300,7 @@ router.post('/api/scan/zap/start', requireModule('dast_advanced'), async (req, r
 });
 
 // ── AI Hunter Scan ────────────────────────────────────────────────────────────
-router.post('/api/scan/ai-hunter/start', async (req, res) => {
+router.post('/api/scan/ai-hunter/start', optionalAuth, async (req, res) => {
     const { target, loginUrl, username, password, selectors, wafBypass, proxy, repoName } = req.body || {};
     if (!target) return res.status(400).json({ error: 'Required: target' });
 
@@ -286,7 +308,7 @@ router.post('/api/scan/ai-hunter/start', async (req, res) => {
         const result = await aiHunter.startHunt({ target, loginUrl: loginUrl || target, username: username || '', password: password || '', selectors, wafBypass, proxy, repoName });
         const scanId = result.scanId;
 
-        await storage.saveScan({ id: scanId, target, type: 'ai-hunter', status: 'running', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'ai-hunter', status: 'running', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         const pollInterval = setInterval(async () => {
             try {
@@ -326,7 +348,7 @@ router.get('/api/scan/ai-hunter/status/:scanId', async (req, res) => {
 });
 
 // ── Authenticated Scan (Gray Box) ─────────────────────────────────────────────
-router.post('/api/scan/authenticated/start', requireModule('dast_core'), async (req, res) => {
+router.post('/api/scan/authenticated/start', optionalAuth, requireModule('dast_core'), async (req, res) => {
     try {
         let { target, loginUrl, username, password, selectors, tool, fullModules, spaMode } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
@@ -336,9 +358,16 @@ router.post('/api/scan/authenticated/start', requireModule('dast_core'), async (
         if (!/^https?:\/\//i.test(target)) target = `http://${target}`;
         if (!/^https?:\/\//i.test(loginUrl)) loginUrl = `http://${loginUrl}`;
 
+        target = sanitizeString(target, 500);
+        loginUrl = sanitizeString(loginUrl, 500);
+
+        if (!validateUrl(target) || !validateUrl(loginUrl)) {
+            return res.status(400).json({ error: 'Invalid URL format for target or login page' });
+        }
+
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'authenticated', status: 'authenticating', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'authenticated', status: 'authenticating', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         (async () => {
             try {
@@ -390,7 +419,7 @@ router.post('/api/scan/authenticated/start', requireModule('dast_core'), async (
                     } catch (e) { /* ignore */ }
                 }
 
-                const finalResults = selectedTool === 'zap' ? results : ReportTransformer.transform(results);
+                const finalResults = ReportTransformer.transform(results);
                 await storage.updateScan(scanId, { status: 'completed', completedAt: new Date().toISOString(), findings: finalResults.findings, summary: finalResults.summary, progress: 100, logs: toolService.getProgress(scanId).logs });
                 console.log(`[Scan ${scanId}] Authenticated scan completed`);
 
@@ -420,13 +449,13 @@ router.get('/api/auth/session-status/:scanId', async (req, res) => {
 });
 
 // ── Katana Crawl ──────────────────────────────────────────────────────────────
-router.post('/api/scan/katana/start', requireModule('dast_core'), async (req, res) => {
+router.post('/api/scan/katana/start', optionalAuth, requireModule('dast_core'), async (req, res) => {
     try {
         const { target, loginUrl, username, password, selectors, depth, headless } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'katana', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'katana', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         (async () => {
             try {
@@ -453,13 +482,13 @@ router.post('/api/scan/katana/start', requireModule('dast_core'), async (req, re
 });
 
 // ── Nuclei CVE Scan ───────────────────────────────────────────────────────────
-router.post('/api/scan/nuclei/start', requireModule('dast_core'), async (req, res) => {
+router.post('/api/scan/nuclei/start', optionalAuth, requireModule('dast_core'), async (req, res) => {
     try {
         const { target, loginUrl, username, password, selectors, tags, severity } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target URL is required' });
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'nuclei', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'nuclei', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         (async () => {
             try {
@@ -486,13 +515,13 @@ router.post('/api/scan/nuclei/start', requireModule('dast_core'), async (req, re
 });
 
 // ── Retire.js SCA Scan ────────────────────────────────────────────────────────
-router.post('/api/scan/retire/start', requireModule('dast_core'), async (req, res) => {
+router.post('/api/scan/retire/start', optionalAuth, requireModule('dast_core'), async (req, res) => {
     try {
         const { target, mode } = req.body || {};
         if (!target) return res.status(400).json({ error: 'Target is required' });
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'retire', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'retire', status: 'pending', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         (async () => {
             try {
@@ -520,13 +549,13 @@ router.get('/api/scan/retire/results/:scanId', (req, res) => {
 });
 
 // ── Full Gray Box Pipeline: Auth → Katana → Nuclei → Wapiti → Merge ─────────
-router.post('/api/scan/graybox/full', requireModule('dast_core'), async (req, res) => {
+router.post('/api/scan/graybox/full', optionalAuth, requireModule('dast_core'), async (req, res) => {
     try {
         const { target, loginUrl, username, password, selectors } = req.body || {};
         if (!target || !loginUrl || !username || !password) return res.status(400).json({ error: 'Target, login URL, and credentials are required for full Gray Box pipeline' });
 
         const scanId = uuidv4();
-        await storage.saveScan({ id: scanId, target, type: 'graybox_full', status: 'authenticating', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
+        await storage.saveScan({ id: scanId, target, userId: req.userId || 'anonymous', type: 'graybox_full', status: 'authenticating', startedAt: new Date().toISOString(), progress: 0, findings: [], summary: { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 } });
 
         (async () => {
             const allLogs = [];
@@ -593,8 +622,8 @@ router.post('/api/scan/graybox/full', requireModule('dast_core'), async (req, re
 });
 
 // ── Scan History ──────────────────────────────────────────────────────────────
-router.get('/api/scan/history', async (req, res) => {
-    const scans = await storage.getAllScans();
+router.get('/api/scan/history', optionalAuth, async (req, res) => {
+    const scans = await storage.getAllScans(req.userId);
     const history = scans.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt)).slice(0, 20);
     res.json(history);
 });
@@ -604,7 +633,14 @@ router.delete('/api/scan/history', (req, res) => {
     res.json({ message: 'History cleared' });
 });
 
-router.delete('/api/scan/:id', async (req, res) => {
+router.delete('/api/scan/:id', optionalAuth, async (req, res) => {
+    const scan = await storage.getScan(req.params.id);
+    if (!scan) return res.status(404).json({ error: 'Scan not found' });
+    // Relaxed ownership check: allow delete if scan is 'anonymous' or user owns it
+    const scanOwner = scan.userId || 'anonymous';
+    if (scanOwner !== 'anonymous' && req.userId !== 'anonymous' && scanOwner !== req.userId) {
+        return res.status(403).json({ error: 'Access denied' });
+    }
     const success = await storage.deleteScan(req.params.id);
     if (success) res.json({ message: 'Scan deleted' });
     else res.status(404).json({ error: 'Scan not found' });

@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
     Play, Square, Terminal, Activity, Shield, FileText,
     AlertTriangle, Copy, ExternalLink, Check, Zap, Server,
-    Radio, Crosshair, Download, Globe
+    Radio, Crosshair, Download, Globe, Search
 } from "lucide-react";
 import Config from '@/config';
 import { useToast } from "@/hooks/use-toast";
+import { useScanner } from '@/contexts/ScannerContext';
 
 interface Log {
     type: 'info' | 'error' | 'warning';
@@ -38,14 +39,15 @@ interface Wordlist {
 
 export const Forrecon = () => {
     const { toast } = useToast();
+    const { scanState, setForreconScanId } = useScanner();
     const [target, setTarget] = useState('');
     const [threads, setThreads] = useState(50);
     const [safeMode, setSafeMode] = useState(false);
     const [wordlist, setWordlist] = useState<string>('');
     const [wordlists, setWordlists] = useState<Wordlist[]>([]);
-    const [scanId, setScanId] = useState<string | null>(null);
     const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'stopped'>('idle');
     const [logs, setLogs] = useState<Log[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [findings, setFindings] = useState<Finding[]>([]);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -68,10 +70,10 @@ export const Forrecon = () => {
     // Poll for status
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (scanId && status === 'running') {
+        if (scanState.forreconScanId && status === 'running') {
             interval = setInterval(async () => {
                 try {
-                    const res = await fetch(`${Config.API_URL}/api/tools/forrecon/status/${scanId}`);
+                    const res = await fetch(`${Config.API_URL}/api/tools/forrecon/status/${scanState.forreconScanId}`);
                     if (res.ok) {
                         const data = await res.json();
                         setStatus(data.status);
@@ -94,7 +96,7 @@ export const Forrecon = () => {
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [scanId, status]);
+    }, [scanState.forreconScanId, status]);
 
     const handleStart = async () => {
         if (!target) {
@@ -105,7 +107,7 @@ export const Forrecon = () => {
         setStatus('running');
         setLogs([]);
         setFindings([]);
-        setScanId(null);
+        setForreconScanId(null);
 
         try {
             const res = await fetch(`${Config.API_URL}/api/tools/forrecon/start`, {
@@ -121,7 +123,7 @@ export const Forrecon = () => {
 
             if (res.ok) {
                 const data = await res.json();
-                setScanId(data.scanId);
+                setForreconScanId(data.scanId);
                 toast({
                     title: "Engine Engaged",
                     description: "Forrecon-Alpha is operational and scanning.",
@@ -143,18 +145,23 @@ export const Forrecon = () => {
     };
 
     const handleStop = async () => {
-        if (!scanId) return;
+        if (!scanState.forreconScanId) return;
         try {
             await fetch(`${Config.API_URL}/api/tools/forrecon/stop`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scanId })
+                body: JSON.stringify({ scanId: scanState.forreconScanId })
             });
             setStatus('stopped');
+            setForreconScanId(null);
         } catch (e) {
             console.error(e);
         }
     };
+
+    const filteredFindings = findings.filter(f => 
+        (f.url || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full font-sans relative">
@@ -295,8 +302,8 @@ export const Forrecon = () => {
             {/* Right Column: Findings Feed (8 cols) - Fills height */}
             <Card className="xl:col-span-8 lg:col-span-8 flex flex-col border-cyber-cyan/20 bg-background/60 backdrop-blur-2xl shadow-2xl relative overflow-hidden h-full">
                 {/* Header */}
-                <div className="p-3 border-b border-white/5 flex items-center justify-between bg-black/10 flex-none">
-                    <div className="flex items-center gap-3">
+                <div className="p-3 border-b border-white/5 flex items-center justify-between bg-black/10 flex-none gap-4">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="p-1.5 rounded-lg bg-cyber-cyan/10 border border-cyber-cyan/20">
                             <Activity className="w-4 h-4 text-cyber-cyan" />
                         </div>
@@ -306,18 +313,30 @@ export const Forrecon = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-xs group hidden md:block">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground group-focus-within:text-cyber-cyan transition-colors" />
+                        <Input
+                            placeholder="Search Resources..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-7 h-7 bg-black/40 border-white/10 rounded-md text-[10px] font-mono focus:border-cyber-cyan/50"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right hidden sm:block">
-                            <div className="text-lg font-bold font-mono leading-none text-cyber-cyan">{findings.length}</div>
+                            <div className="text-lg font-bold font-mono leading-none text-cyber-cyan">
+                                {searchQuery ? `${filteredFindings.length}/${findings.length}` : findings.length}
+                            </div>
                             <div className="text-[9px] uppercase text-muted-foreground tracking-wider">Targets Found</div>
                         </div>
 
-                        {status === 'completed' && scanId && (
+                        {status === 'completed' && scanState.forreconScanId && (
                             <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300 transition-all"
-                                onClick={() => window.open(`${Config.API_URL}/api/tools/forrecon/report/${scanId}`, '_blank')}
+                                onClick={() => window.open(`${Config.API_URL}/api/tools/forrecon/report/${scanState.forreconScanId}`, '_blank')}
                             >
                                 <Download className="w-3 h-3 mr-1" />
                                 REPORT
@@ -338,7 +357,7 @@ export const Forrecon = () => {
                 <CardContent className="flex-1 p-0 overflow-hidden relative min-h-0">
                     <ScrollArea className="h-full w-full">
                         <div className="px-2 py-2">
-                            {findings.length === 0 ? (
+                            {filteredFindings.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center pt-24 text-muted-foreground/30 space-y-3">
                                     <div className="relative">
                                         <div className="absolute inset-0 bg-cyber-cyan/20 blur-xl rounded-full" />
@@ -347,7 +366,7 @@ export const Forrecon = () => {
                                     <p className="font-mono text-xs tracking-widest uppercase">No data captured</p>
                                 </div>
                             ) : (
-                                findings.map((f, i) => (
+                                filteredFindings.map((f, i) => (
                                     <div key={i} className="group grid grid-cols-12 gap-4 px-3 py-2 mb-1 rounded bg-black/5 hover:bg-white/5 transition-all text-xs font-mono items-center animate-in fade-in slide-in-from-bottom-2 duration-300">
                                         <div className="col-span-1">
                                             <Badge

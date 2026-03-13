@@ -251,74 +251,300 @@ export const ScanReport = ({ result }: ScanReportProps) => {
     };
 
     const handleDownloadPDF = () => {
+        const overlay = document.createElement("div");
+        overlay.id = "vapt-report-builder-modal";
+        Object.assign(overlay.style, {
+            position: "fixed", top: "0", left: "0", width: "100vw", height: "100vh",
+            backgroundColor: "rgba(2, 6, 23, 0.98)", backdropFilter: "blur(12px)",
+            zIndex: "10000", display: "flex", alignItems: "center", justifyContent: "center"
+        });
+        
+        const modal = document.createElement("div");
+        Object.assign(modal.style, {
+            background: "#020617", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: "16px", width: "95%", maxWidth: "880px", maxHeight: "92vh",
+            overflowY: "auto", padding: "40px", color: "#f8fafc", fontFamily: "'Inter', sans-serif",
+            boxShadow: "0 25px 70px -12px rgba(0, 0, 0, 0.8)", position: "relative"
+        });
+
+        modal.innerHTML = `
+            <div style="margin-bottom: 32px;">
+                <h2 style="font-size: 24px; font-weight: 800; margin: 0 0 4px 0; color: #fff; letter-spacing: -0.5px;">Configure & compile security assessment report</h2>
+                <p style="color: #64748b; font-size: 15px; margin: 0;">Finalize the structural components and sensitivity parameters for the engagement deliverable.</p>
+            </div>
+
+            <!-- 1. REPORT TYPE -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="font-size: 13px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">1. REPORT TYPE</h3>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                    <div class="rtype-card active" data-type="combined" style="border: 2px solid #3b82f6; background: rgba(59, 130, 246, 0.08); padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px; color: #fff;">Combined Report</div>
+                        <div style="font-size: 13px; color: #94a3b8;">Both executive summary and full technical analysis sections</div>
+                    </div>
+                    <div class="rtype-card" data-type="executive" style="border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px; color: #fff;">Executive Summary</div>
+                        <div style="font-size: 13px; color: #94a3b8;">High-level overview for management and clients (non-technical)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. INCLUDE SECTIONS -->
+            <div style="margin-bottom: 32px;">
+                <h3 style="font-size: 13px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">2. INCLUDE SECTIONS</h3>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    ${[
+                        { id: 'cover', label: 'Cover Page with Engagement Details', checked: true },
+                        { id: 'summary', label: 'Executive Summary Overview', checked: true },
+                        { id: 'methodology', label: 'Scope & Assessment Methodology', checked: true },
+                        { id: 'vulns', label: 'Detailed Vulnerability Exhibits', checked: true },
+                        { id: 'cvss', label: 'CVSS Risk Score Breakdown', checked: true },
+                        { id: 'remediation', label: 'Priority Remediation Roadmap', checked: true }
+                    ].map(s => `
+                        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 14px; font-weight: 500; color: #e2e8f0;">
+                            <input type="checkbox" id="check-${s.id}" ${s.checked ? 'checked' : ''} style="width: 18px; height: 18px; border-radius: 4px; accent-color: #3b82f6;">
+                            ${s.label}
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
+                <!-- 3. CONFIDENTIALITY -->
+                <div>
+                    <h3 style="font-size: 13px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">3. CONFIDENTIALITY LEVEL</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="conf-btn active" data-conf="CONFIDENTIAL" style="flex: 1; padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;">Confidential</button>
+                        <button class="conf-btn" data-conf="INTERNAL USE" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;">Internal Only</button>
+                    </div>
+                </div>
+                
+                <!-- 4. MANUAL INPUTS -->
+                <div>
+                    <h3 style="font-size: 13px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">4. MANUAL INPUTS</h3>
+                     <textarea id="execNote" style="width: 100%; min-height: 48px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; color: #fff; font-size: 13px; box-sizing: border-box;" placeholder="Add final forward/closing notes..."></textarea>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 16px;">
+                <button id="cancelBtn" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 12px 32px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">Discard</button>
+                <button id="generateBtn" style="background: linear-gradient(to right, #2563eb, #3b82f6); border: none; color: #fff; padding: 12px 40px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 15px; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);">Compile Report</button>
+            </div>
+        `;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // State orchestration
+        (modal as any)._selectedType = 'combined';
+        (modal as any)._selectedConf = 'CONFIDENTIAL';
+
+        modal.querySelectorAll('.rtype-card').forEach(c => c.addEventListener('click', () => {
+            modal.querySelectorAll('.rtype-card').forEach(x => { (x as HTMLElement).style.border = '1px solid rgba(255,255,255,0.1)'; (x as HTMLElement).style.background = 'rgba(255,255,255,0.02)'; });
+            (c as HTMLElement).style.border = '2px solid #3b82f6'; (c as HTMLElement).style.background = 'rgba(59, 130, 246, 0.08)';
+            (modal as any)._selectedType = (c as HTMLElement).dataset.type;
+        }));
+
+        modal.querySelectorAll('.conf-btn').forEach(b => b.addEventListener('click', () => {
+            modal.querySelectorAll('.conf-btn').forEach(x => { (x as HTMLElement).style.border = '1px solid rgba(255,255,255,0.1)'; (x as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (x as HTMLElement).style.color = '#94a3b8'; });
+            (b as HTMLElement).style.border = '1px solid #3b82f6'; (b as HTMLElement).style.background = 'rgba(59, 130, 246, 0.1)'; (b as HTMLElement).style.color = '#fff';
+            (modal as any)._selectedConf = (b as HTMLElement).dataset.conf;
+        }));
+
+        const cleanup = () => document.body.removeChild(overlay);
+        document.getElementById("cancelBtn")?.addEventListener("click", cleanup);
+        document.getElementById("generateBtn")?.addEventListener("click", () => {
+             const options = {
+                 type: (modal as any)._selectedType,
+                 confidentiality: (modal as any)._selectedConf,
+                 sections: {
+                     cover: (document.getElementById('check-cover') as HTMLInputElement).checked,
+                     summary: (document.getElementById('check-summary') as HTMLInputElement).checked,
+                     methodology: (document.getElementById('check-methodology') as HTMLInputElement).checked,
+                     vulns: (document.getElementById('check-vulns') as HTMLInputElement).checked,
+                     cvss: (document.getElementById('check-cvss') as HTMLInputElement).checked,
+                     remediation: (document.getElementById('check-remediation') as HTMLInputElement).checked
+                 },
+                 notes: (document.getElementById('execNote') as HTMLTextAreaElement).value
+             };
+             cleanup();
+             generateFinalPDF(options.notes, { title: '' }, options);
+        });
+    };
+
+    const generateFinalPDF = (executiveNote: string, manualFinding: any, options: any = {}) => {
+        const { type = 'combined', confidentiality = 'CONFIDENTIAL', sections = {}, notes = '' } = options;
         const severityColors: Record<string, string> = {
             critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#3b82f6', info: '#64748b'
         };
-        const findings = result.findings || [];
-        const summary = result.summary || {};
+        const findings = [...(result.findings || [])];
+        const summary = { ...(result.summary || { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }) };
+        
+        // Handle Manual Finding
+        if (manualFinding && manualFinding.title && manualFinding.title.trim() !== '') {
+            findings.unshift({
+                id: 'MANUAL-' + Date.now(),
+                severity: manualFinding.severity.toLowerCase(),
+                type: manualFinding.title,
+                title: manualFinding.title,
+                url: result.target,
+                evidence: manualFinding.poc,
+                stepsToReproduce: manualFinding.poc,
+                remediation: manualFinding.remediation,
+                description: manualFinding.description,
+                cvssScore: manualFinding.severity === 'CRITICAL' ? 9.8 : (manualFinding.severity === 'HIGH' ? 8.0 : (manualFinding.severity === 'MEDIUM' ? 5.0 : 0.0))
+            });
+            summary.total += 1;
+            summary[manualFinding.severity.toLowerCase() as keyof typeof summary] += 1;
+        }
+
         const dateStr = new Date().toLocaleString();
 
-        const findingsHtml = findings.length === 0
-            ? '<p style="color:#64748b;font-style:italic;">No vulnerabilities identified.</p>'
-            : findings.map((f: any, i: number) => {
-                const sev = (f.severity || 'info').toLowerCase();
-                const color = severityColors[sev] || '#64748b';
-                return `
-                    <div style="margin-bottom:24px;padding:16px;border:1px solid #e2e8f0;border-left:4px solid ${color};border-radius:6px;page-break-inside:avoid;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                            <strong style="font-size:14px;color:#0f172a;">${i + 1}. ${f.type || f.name || 'Finding'}</strong>
-                            <span style="background:${color};color:#fff;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;">${sev}</span>
+        const findingsHtml = (type === 'executive') ? '' : findings.map((f: any, i: number) => {
+            const sev = (f.severity || 'info').toLowerCase();
+            const color = severityColors[sev] || '#64748b';
+            
+            return `
+                <div style="margin-bottom: 40px; page-break-inside: avoid; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff;">
+                    <div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; margin-bottom: 4px;">FINDING-${String(i+1).padStart(3, '0')}</div>
+                            <h3 style="margin: 0; font-size: 18px; color: #0f172a; font-weight: 800;">${f.title || f.type}</h3>
+                            <div style="font-size: 12px; color: #475569; margin-top: 6px;">URL: <code>${f.url || 'N/A'}</code></div>
                         </div>
-                        <p style="font-size:12px;color:#475569;margin:4px 0;"><strong>URL:</strong> ${f.url || f.path || 'N/A'}</p>
-                        ${f.parameter ? `<p style="font-size:12px;color:#475569;margin:4px 0;"><strong>Parameter:</strong> ${f.parameter}</p>` : ''}
-                        <p style="font-size:12px;color:#475569;margin:4px 0;"><strong>CVSS:</strong> ${(Number(f.cvssScore) || 0).toFixed(1)}</p>
-                        <p style="font-size:12px;color:#334155;margin:8px 0 4px;"><strong>Description:</strong> ${f.description || 'No description provided.'}</p>
-                        ${f.evidence ? `<p style="font-size:11px;font-family:monospace;background:#f8fafc;padding:8px;border-radius:4px;border:1px solid #e2e8f0;word-break:break-all;color:#475569;"><strong>Evidence:</strong> ${(f.evidence).substring(0, 500)}</p>` : ''}
-                        <p style="font-size:12px;color:#15803d;margin:8px 0 0;"><strong>Remediation:</strong> ${f.remediation || 'Consult OWASP best practices.'}</p>
-                    </div>`;
-            }).join('');
+                        <div style="text-align: right;">
+                            <div style="background: ${color}; color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase;">${sev}</div>
+                            <div style="margin-top: 6px; font-size: 12px; color: #475569; font-weight: 600;">CVSS: ${(Number(f.cvssScore) || 0).toFixed(1)}</div>
+                        </div>
+                    </div>
+                    <div style="padding: 24px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 800;">Description & Impact</h4>
+                        <p style="margin: 0 0 20px 0; font-size: 14px; color: #1e293b; line-height: 1.6;">${f.description || f.impact || 'N/A'}</p>
+                        
+                        ${(f.evidence || f.stepsToReproduce || f.curlCommand) && sections.vulns ? `
+                        <h4 style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 800;">Proof of Concept</h4>
+                        <div style="margin: 0 0 20px 0; background: #0f172a; padding: 15px; border-radius: 6px; overflow-x: auto;">
+                            <pre style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #e2e8f0; white-space: pre-wrap; word-break: break-all;">${f.curlCommand || f.evidence || f.stepsToReproduce}</pre>
+                        </div>` : ''}
+                        
+                        ${sections.remediation ? `
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 6px;">
+                            <h4 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #16a34a; font-weight: 800;">Remediation</h4>
+                            <p style="margin: 0; font-size: 13px; color: #15803d; line-height: 1.5;">${f.remediation || 'Conduct thorough code review and implement context-aware output encoding.'}</p>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+        }).join('');
 
-        const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/>
-<title>VAPT Report - ${result.target}</title>
+        const renderedHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
 <style>
-  body { font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 40px 30px; color: #1e293b; }
-  h1 { font-size: 26px; color: #0f172a; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; }
-  h2 { font-size: 18px; color: #0f172a; margin-top: 32px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-  .meta { color: #64748b; font-size: 13px; margin-bottom: 24px; }
-  .summary { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 32px; }
-  .badge { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; }
-  @media print { body { padding: 20px; } }
-</style></head><body>
-<h1>Vulnerability Assessment & Penetration Testing Report</h1>
-<div class="meta">
-  <strong>Target:</strong> ${result.target} &nbsp;|&nbsp;
-  <strong>Date:</strong> ${dateStr} &nbsp;|&nbsp;
-  <strong>Scan ID:</strong> ${result.id}
-</div>
-<h2>Executive Summary</h2>
-<div class="summary">
-  <div class="badge" style="background:#fef2f2;color:#dc2626;">CRITICAL: ${summary.critical || 0}</div>
-  <div class="badge" style="background:#fff7ed;color:#ea580c;">HIGH: ${summary.high || 0}</div>
-  <div class="badge" style="background:#fffbeb;color:#d97706;">MEDIUM: ${summary.medium || 0}</div>
-  <div class="badge" style="background:#eff6ff;color:#3b82f6;">LOW: ${summary.low || 0}</div>
-  <div class="badge" style="background:#f8fafc;color:#64748b;">INFO: ${summary.info || 0}</div>
-  <div class="badge" style="background:#f0fdf4;color:#16a34a;">TOTAL: ${summary.total || findings.length}</div>
-</div>
-<h2>Detailed Findings (${findings.length})</h2>
-${findingsHtml}
-<p style="margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">Generated by VajraScan VAPT Framework &mdash; ${dateStr}</p>
-</body></html>`;
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+  body { font-family: 'Inter', sans-serif; color: #0f172a; margin: 0; padding: 0; background: #fff; }
+  .confidential-watermark { position: fixed; top: 20px; right: 40px; font-size: 12px; font-weight: 800; color: #dc2626; border: 2px solid #dc2626; padding: 4px 10px; border-radius: 4px; z-index: 1000; transform: rotate(5deg); }
+  .cover-page { height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 80px; background: #020617; color: #fff; page-break-after: always; position: relative; }
+  .report-content { padding: 60px 80px; }
+  .section-ttl { font-size: 24px; font-weight: 800; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin: 40px 0 24px 0; }
+  .summary-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 40px; }
+  .stat-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; }
+  .stat-val { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+  .stat-lab { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+  @media print { .cover-page { background: #020617 !important; -webkit-print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+    <div class="confidential-watermark">${confidentiality}</div>
 
-        const win = window.open('', '_blank', 'width=1000,height=800');
-        if (!win) {
-            alert('Pop-up blocked! Please allow pop-ups for this site and try again.');
-            return;
+    <!-- 1. COVER PAGE -->
+    ${sections.cover ? `
+    <div class="cover-page">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 60px;">
+            <div style="width: 44px; height: 44px; background: #38bdf8; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#020617" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <span style="font-size: 22px; font-weight: 800; letter-spacing: 1.5px; color: #fff;">VAJRA<span style="color: #38bdf8;">SCAN</span></span>
+        </div>
+        <h1 style="font-size: 48px; font-weight: 800; line-height: 1; margin-bottom: 10px;">Security Assessment Report</h1>
+        <p style="font-size: 18px; color: #94a3b8; margin-bottom: 60px;">${type === 'combined' ? 'Comprehensive Vulnerability Validation' : (type === 'executive' ? 'Executive Risk Summary' : 'Technical Security Exhibit')}</p>
+        <div style="width: 80px; height: 4px; background: #2563eb; margin-bottom: 60px;"></div>
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px; font-size: 14px;">
+            <div style="color: #64748b; font-weight: 700;">TARGET</div><div style="font-family: 'JetBrains Mono';">${result.target}</div>
+            <div style="color: #64748b; font-weight: 700;">DATE</div><div>${dateStr}</div>
+            <div style="color: #64748b; font-weight: 700;">ENGAGEMENT</div><div style="font-family: 'JetBrains Mono';">${result.id}</div>
+        </div>
+        <div style="position: absolute; bottom: 40px; font-size: 11px; color: #475569;">VajraScan VAPT Framework • Final Deliverable</div>
+    </div>` : ''}
+
+    <div class="report-content">
+        <!-- 2. EXECUTIVE SUMMARY -->
+        ${sections.summary ? `
+        <h2 class="section-ttl">Executive Summary</h2>
+        ${notes ? `<div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 20px; font-size: 14px; line-height: 1.7; margin-bottom: 32px;">${notes.replace(/\n/g, '<br>')}</div>` : ''}
+        <div class="summary-grid">
+            <div style="border-top: 4px solid #dc2626;" class="stat-card"><div class="stat-val" style="color: #dc2626;">${summary.critical}</div><div class="stat-lab">Critical</div></div>
+            <div style="border-top: 4px solid #ea580c;" class="stat-card"><div class="stat-val" style="color: #ea580c;">${summary.high}</div><div class="stat-lab">High</div></div>
+            <div style="border-top: 4px solid #d97706;" class="stat-card"><div class="stat-val" style="color: #d97706;">${summary.medium}</div><div class="stat-lab">Medium</div></div>
+            <div style="border-top: 4px solid #3b82f6;" class="stat-card"><div class="stat-val" style="color: #3b82f6;">${summary.low}</div><div class="stat-lab">Low</div></div>
+            <div style="border-top: 4px solid #64748b;" class="stat-card"><div class="stat-val" style="color: #64748b;">${summary.info}</div><div class="stat-lab">Info</div></div>
+            <div style="background: #eff6ff;" class="stat-card"><div class="stat-val" style="color: #1e40af;">${summary.total}</div><div class="stat-lab">Total</div></div>
+        </div>` : ''}
+
+        <!-- 3. METHODOLOGY -->
+        ${sections.methodology ? `
+        <h2 class="section-ttl">Assessment Methodology</h2>
+        <p style="font-size: 14px; line-height: 1.6; color: #334155;">This assessment utilized standard penetration testing methodologies including reconnaissance, automated fuzzing, and manual validation. All findings represent verified security weaknesses at the time of the scan.</p>` : ''}
+
+        <!-- 4. FINDINGS -->
+        ${sections.vulns ? `
+        <h2 class="section-ttl">Technical Vulnerability Exhibits</h2>
+        ${findingsHtml}` : ''}
+
+        <!-- 5. COMPLIANCE MAPPING -->
+        ${sections.compliance ? `
+        <h2 class="section-ttl">Compliance Framework Mapping</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 13px;">
+            <thead>
+                <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 12px; text-align: left; font-weight: 800; color: #64748b;">FINDING ID</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 800; color: #64748b;">CATEGORY</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 800; color: #64748b;">OWASP 2021/2024</th>
+                    <th style="padding: 12px; text-align: left; font-weight: 800; color: #64748b;">CWE IDENTIFIER</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${findings.map((f: any, i: number) => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 12px; font-family: 'JetBrains Mono'; color: #475569;">F-${String(i+1).padStart(3, '0')}</td>
+                    <td style="padding: 12px; font-weight: 600;">${f.title || f.type}</td>
+                    <td style="padding: 12px; color: #1e40af;">${f.owasp || 'A00: Uncategorized'}</td>
+                    <td style="padding: 12px;"><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono';">${f.cweId || 'N/A'}</span></td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+        <p style="font-size: 11px; color: #94a3b8; font-style: italic;">Note: This mapping is generated based on standard industry taxonomy (CWE 4.13, OWASP Top 10 2021).</p>` : ''}
+
+        <div style="margin-top: 100px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
+            This report was securely generated by the VajraScan VAPT Framework.
+        </div>
+    </div>
+</body>
+</html>`;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+            doc.open();
+            doc.write(renderedHtml);
+            doc.close();
+            setTimeout(() => {
+                iframe.contentWindow?.focus();
+                iframe.contentWindow?.print();
+                document.body.removeChild(iframe);
+            }, 500);
         }
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        setTimeout(() => { win.print(); }, 800);
     };
 
     const [isGrouped, setIsGrouped] = useState(true);
@@ -326,8 +552,8 @@ ${findingsHtml}
     const filteredFindings = result.findings.filter((v) => {
         const matchFilter = filter === "all" || v.severity === filter;
         const matchSearch =
-            v.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            v.url.toLowerCase().includes(searchQuery.toLowerCase());
+            (v.type || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (v.url || "").toLowerCase().includes(searchQuery.toLowerCase());
         return matchFilter && matchSearch;
     });
 
@@ -422,12 +648,12 @@ ${findingsHtml}
                             return (
                                 <Card
                                     key={stat.label}
-                                    className={`cursor-pointer transition-all duration-300 overflow-hidden relative ${isActive ? `ring-1 ring-offset-0 ${config.bg} bg-opacity-20 ${config.border}` : 'bg-card/40 border-white/[0.04] hover:bg-card hover:border-white/[0.08]'}`}
+                                    className={"cursor-pointer transition-all duration-300 overflow-hidden relative " + (isActive ? "ring-1 ring-offset-0 " + config.bg + " bg-opacity-20 " + config.border : "bg-card/40 border-white/[0.04] hover:bg-card hover:border-white/[0.08]")}
                                     onClick={() => setFilter(stat.severity)}
                                 >
-                                    {isActive && <div className={`absolute inset-0 bg-gradient-to-br from-transparent to-${stat.severity === 'all' ? 'primary/10' : config.color.split('-')[1] + '-500/10'}`} />}
+                                    {isActive && <div className={"absolute inset-0 bg-gradient-to-br from-transparent to-" + (stat.severity === 'all' ? 'primary/10' : (config.color.split('-')[1] || 'gray') + '-500/10')} />}
                                     <CardContent className="p-6 flex flex-col items-center justify-center text-center relative z-10">
-                                        <div className={`text-4xl font-black mb-2 tracking-tighter drop-shadow-sm ${stat.severity === 'all' ? 'text-foreground' : config.color}`}>{stat.value}</div>
+                                        <div className={"text-4xl font-black mb-2 tracking-tighter drop-shadow-sm " + (stat.severity === 'all' ? 'text-foreground' : config.color)}>{stat.value}</div>
                                         <div className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/70">{stat.label}</div>
                                     </CardContent>
                                 </Card>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, LogOut, User, BarChart3, Globe, Settings, FileText,
@@ -20,7 +21,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Loader2, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { VaptFlowchart } from "@/components/dashboard/VaptFlowchart";
 import { ThreatTopologyChart } from "@/components/dashboard/ThreatTopologyChart";
 
@@ -32,6 +34,7 @@ const Dashboard = () => {
 
   const getSectionFromPath = (path: string) => {
     if (path.includes("/vmt")) return "VMT";
+    if (path.includes("/projects")) return "Projects";
     if (path.includes("/scans") || path.includes("/scanner")) return "Scans";
     if (path.includes("/reports")) return "Reports";
     if (path.includes("/analytics")) return "Analytics";
@@ -43,6 +46,11 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(getSectionFromPath(location.pathname));
   const [isLive, setIsLive] = useState(true);
 
+  // Dynamic dates
+  const today = new Date();
+  const futureDate = new Date();
+  futureDate.setDate(today.getDate() + 14); // Default to 2-week engagement
+
   // New Project State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,15 +58,16 @@ const Dashboard = () => {
     title: "",
     description: "",
     companyName: "",
-    targetUrls: "",
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: "",
-    testerName: "",
-    testerEmail: "",
+    targetUrls: [""], // Dynamic array instead of string
+    startDate: today.toISOString().split('T')[0],
+    endDate: futureDate.toISOString().split('T')[0],
+    testerName: user?.email ? user.email.split('@')[0] : "", // Auto-fill from auth
+    testerEmail: user?.email || "",
     engagementType: "Black Box",
     username: "",
     password: ""
   });
+
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +78,7 @@ const Dashboard = () => {
         title: formData.title,
         description: formData.description,
         companyName: formData.companyName,
-        targetUrls: formData.targetUrls.split(',').map(s => s.trim()),
+        targetUrls: formData.targetUrls.map(s => s.trim()).filter(s => s),
         startDate: formData.startDate,
         endDate: formData.endDate,
         testerName: formData.testerName,
@@ -95,11 +104,12 @@ const Dashboard = () => {
         });
         setIsCreateModalOpen(false);
         setFormData({
-          title: "", description: "", companyName: "", targetUrls: "",
-          startDate: new Date().toISOString().split('T')[0], endDate: "",
-          testerName: "", testerEmail: "", engagementType: "Black Box",
+          title: "", description: "", companyName: "", targetUrls: [""],
+          startDate: today.toISOString().split('T')[0], endDate: futureDate.toISOString().split('T')[0],
+          testerName: user?.email ? user.email.split('@')[0] : "", testerEmail: user?.email || "", engagementType: "Black Box",
           username: "", password: ""
         });
+
         navigate(`/projects/${data.projectId}`);
       } else {
         const err = await res.json();
@@ -163,6 +173,15 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('createProject') === 'true') {
+      setIsCreateModalOpen(true);
+      // Clean up the URL
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
@@ -197,12 +216,13 @@ const Dashboard = () => {
 
   const menuItems = [
     { icon: BarChart3, label: "Dashboard", path: "/dashboard", active: activeSection === "Dashboard" },
+    { icon: LayoutGrid, label: "Projects", path: "/projects", active: activeSection === "Projects" },
     { icon: Globe, label: "Scans", path: "/scanner", active: activeSection === "Scans" },
     { icon: FileText, label: "Reports", path: "/reports", active: activeSection === "Reports" },
     { icon: Activity, label: "Analytics", path: "/analytics", active: activeSection === "Analytics" },
     { icon: Settings, label: "Settings", path: "/settings", active: activeSection === "Settings" },
     { icon: Wrench, label: "Arsenal", path: "/tools", active: activeSection === "Tools" },
-    { icon: LayoutGrid, label: "VMT", path: "/vmt", active: activeSection === "VMT" },
+    { icon: Database, label: "VMT", path: "/vmt", active: activeSection === "VMT" },
   ];
 
   // Stat card color map
@@ -236,23 +256,39 @@ const Dashboard = () => {
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 space-y-0.5">
-          {menuItems.map((item) => (
-            <Link
+        <nav className="flex-1 space-y-1">
+          {menuItems.map((item, idx) => (
+            <motion.div
               key={item.label}
-              to={item.path}
-              onClick={() => setActiveSection(item.label)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${item.active
-                ? "sidebar-item-active"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                }`}
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.1 + idx * 0.05 }}
             >
-              <item.icon className={`w-4 h-4 shrink-0 ${item.active ? "text-primary" : ""}`} />
-              <span>{item.label}</span>
-              {item.active && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(199_89%_48%/0.8)]" />
-              )}
-            </Link>
+              <Link
+                to={item.path}
+                onClick={() => setActiveSection(item.label)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group/nav relative overflow-hidden",
+                  item.active
+                    ? "sidebar-item-active bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                )}
+              >
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/nav:opacity-100 transition-opacity duration-500" />
+                <item.icon className={cn(
+                  "w-4 h-4 shrink-0 transition-transform duration-300 group-hover/nav:scale-110",
+                  item.active ? "text-primary" : "group-hover/nav:text-primary/70"
+                )} />
+                <span className="relative z-10">{item.label}</span>
+                {item.active && (
+                  <motion.span
+                    layoutId="active-indicator"
+                    className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                  />
+                )}
+              </Link>
+            </motion.div>
           ))}
         </nav>
 
@@ -282,16 +318,16 @@ const Dashboard = () => {
       </motion.aside>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 p-4 lg:p-8 relative overflow-hidden">
+      <main className="flex-1 p-3 lg:p-8 relative min-w-0 overflow-hidden">
         <CyberGrid />
 
         <div className="relative z-10 max-w-6xl mx-auto">
 
           {/* Mobile header */}
-          <div className="lg:hidden mb-6 flex items-center justify-between">
+          <div className="lg:hidden mb-6 flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <Shield className="w-6 h-6 text-primary" />
-              <span className="font-bold text-gradient-cyber">VajraScan</span>
+              <span className="font-bold text-gradient-cyber tracking-tight">VajraScan</span>
             </div>
             <Sheet>
               <SheetTrigger asChild>
@@ -328,50 +364,67 @@ const Dashboard = () => {
 
           {/* Header */}
           {activeSection === "VMT" ? (
-            <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-8 flex items-center justify-between">
+            <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold mb-2 flex items-center tracking-tight">
+                <motion.h1
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="text-2xl sm:text-3xl font-black mb-2 flex flex-wrap items-center tracking-tighter"
+                >
                   <span className="text-gradient-danger mr-2">V</span>ULNERABILITY
-                  <span className="w-4" />
+                  <span className="w-2 sm:w-4" />
                   <span className="text-gradient-violet mr-2">M</span>ANAGEMENT
-                </h1>
-                <div className="flex items-center gap-3 text-muted-foreground text-sm font-mono mt-1">
-                  <span className="flex items-center gap-1.5">
+                </motion.h1>
+                <div className="flex items-center gap-3 text-muted-foreground text-[10px] font-mono mt-2 tracking-[0.2em] uppercase opacity-70">
+                  <span className="flex items-center gap-2">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
                     SOC ACTIVE
                   </span>
-                  <span className="w-px h-3 bg-white/20" />
-                  <span>REAL-TIME PROTECTION</span>
+                  <span className="w-[1px] h-3 bg-white/10" />
+                  <span>LEVEL 5</span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className={`border-primary/30 hover:bg-primary/10 transition-all ${isLive ? 'text-primary shadow-[0_0_10px_hsl(199_89%_48%/0.2)]' : 'text-muted-foreground'}`}
-                  onClick={() => { setIsLive(!isLive); toast({ title: isLive ? "Live Feed Paused" : "Live Feed Active" }); }}
-                >
-                  <Activity className={`w-4 h-4 mr-2 ${isLive ? 'animate-pulse' : ''}`} />
-                  {isLive ? "Live Feed Output" : "Connect Feed"}
-                </Button>
-                <Button className="btn-cyber shadow-lg shadow-primary/20" onClick={() => toast({ title: "Auto-Mitigation Initiated", description: "AI Agents deployed..." })}>
-                  <Shield className="w-4 h-4 mr-2" /> Auto-Mitigate All
-                </Button>
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1 sm:flex-none">
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full sm:w-auto border-white/10 bg-white/5 rounded-xl transition-all h-10 px-4 sm:px-5 text-xs sm:text-sm",
+                      isLive ? 'text-primary border-primary/30 shadow-[0_0_20px_rgba(6,182,212,0.1)]' : 'text-muted-foreground'
+                    )}
+                    onClick={() => { setIsLive(!isLive); toast({ title: isLive ? "Live Feed Paused" : "Live Feed Active" }); }}
+                  >
+                    <Activity className={cn("w-4 h-4 mr-2", isLive ? 'animate-pulse' : '')} />
+                    {isLive ? "LIVE STREAM" : "CONNECT FEED"}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1 sm:flex-none">
+                  <Button className="btn-cyber w-full sm:w-auto h-10 px-4 sm:px-6 rounded-xl shadow-lg shadow-primary/20 text-xs sm:text-sm" onClick={() => toast({ title: "Auto-Mitigation Initiated", description: "AI Agents deployed..." })}>
+                    <Shield className="w-4 h-4 mr-2" /> AUTO-MITIGATE
+                  </Button>
+                </motion.div>
               </div>
             </motion.div>
           ) : (
-            <motion.div className="mb-8" initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5 }}>
-              <h1 className="text-3xl font-black text-foreground mb-1 tracking-tight">
+            <motion.div
+              className="mb-8"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-3xl font-black text-foreground mb-1 tracking-tighter uppercase">
                 {activeSection === "Dashboard" ? (
-                  <><span className="text-gradient-cyber">Security</span> Dashboard</>
-                ) : activeSection}
+                  <><span className="text-gradient-cyber">SECURITY</span> HUB</>
+                ) : activeSection.toUpperCase()}
               </h1>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest mt-1">
                 {activeSection === "Dashboard"
-                  ? "Monitor your security posture — live scan results & vulnerability intelligence"
-                  : `Manage your ${activeSection.toLowerCase()} and configurations`}
+                  ? "Vulnerability Intelligence & Real-Time Orchestration"
+                  : `Managing ${activeSection.toLowerCase()} environment`}
               </p>
             </motion.div>
           )}
@@ -393,17 +446,24 @@ const Dashboard = () => {
                     return (
                       <motion.div
                         key={stat.label}
-                        className={`stat-card-premium p-5 rounded-2xl bg-gradient-to-br ${s.bg} border ${s.border} cursor-pointer`}
-                        initial={{ opacity: 0, y: 24 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.08, duration: 0.45 }}
+                        className={cn(
+                          "group p-5 rounded-2xl bg-gradient-to-br border cursor-pointer transition-all duration-500 hover:shadow-2xl",
+                          s.bg, s.border,
+                          stat.color === 'text-primary' ? 'hover:shadow-primary/10' :
+                            stat.color === 'text-red-400' ? 'hover:shadow-red-500/10' :
+                              stat.color === 'text-amber-400' ? 'hover:shadow-amber-500/10' : 'hover:shadow-green-500/10'
+                        )}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2 + idx * 0.1, duration: 0.5, type: "spring", stiffness: 200 }}
+                        whileHover={{ y: -5, scale: 1.02 }}
                         onClick={() => toast({ title: stat.label, description: `${stat.value} ${stat.label.toLowerCase()} recorded` })}
                       >
-                        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-4 ${s.iconBg}`}>
-                          <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                        <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center mb-4 transition-transform group-hover:scale-110", s.iconBg)}>
+                          <stat.icon className={cn("w-5 h-5", stat.color)} />
                         </div>
-                        <div className={`text-4xl font-black ${stat.color} tabular-nums animate-count`}>{stat.value}</div>
-                        <div className="text-xs text-muted-foreground mt-1.5 font-medium uppercase tracking-wider">{stat.label}</div>
+                        <div className={cn("text-4xl font-black tabular-nums tracking-tighter", stat.color)}>{stat.value}</div>
+                        <div className="text-[10px] text-muted-foreground/60 mt-2 font-black uppercase tracking-widest">{stat.label}</div>
                       </motion.div>
                     );
                   })}
@@ -459,11 +519,65 @@ const Dashboard = () => {
                               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Company Name</Label>
                               <Input required placeholder="Ex: Acme Global Inc." className="bg-white/[0.03] border-white/10 h-10 px-4 rounded-xl" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
                             </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Target Scope (URLs)</Label>
-                              <Input required placeholder="https://app.target.com" className="bg-white/[0.03] border-white/10 h-10 px-4 rounded-xl font-mono text-sm" value={formData.targetUrls} onChange={e => setFormData({ ...formData, targetUrls: e.target.value })} />
+                            <div className="space-y-1.5 p-4 rounded-xl border border-white/10 bg-white/[0.01]">
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-primary" /> Target Scope (URLs)
+                                  </Label>
+                                  <Badge variant="outline" className="text-[9px] font-mono border-white/10">{formData.targetUrls.length} Target(s)</Badge>
+                                </div>
+                                <div className="space-y-3 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                                  <AnimatePresence>
+                                    {formData.targetUrls.map((url, i) => (
+                                      <motion.div
+                                        key={i}
+                                        initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, height: "auto", scale: 1 }}
+                                        exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                                        className="relative flex items-center gap-2"
+                                      >
+                                        <Input
+                                          required={i === 0}
+                                          placeholder="https://app.target.com"
+                                          className="bg-black/40 border-white/10 h-10 px-4 rounded-lg font-mono text-sm flex-1 focus:border-primary/50 transition-colors"
+                                          value={url}
+                                          onChange={e => {
+                                            const newUrls = [...formData.targetUrls];
+                                            newUrls[i] = e.target.value;
+                                            setFormData({ ...formData, targetUrls: newUrls });
+                                          }}
+                                        />
+                                        {formData.targetUrls.length > 1 && (
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10 shrink-0 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                                            onClick={() => {
+                                              const newUrls = [...formData.targetUrls];
+                                              newUrls.splice(i, 1);
+                                              setFormData({ ...formData, targetUrls: newUrls });
+                                            }}
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                      </motion.div>
+                                    ))}
+                                  </AnimatePresence>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="w-full mt-2 h-9 border border-white/5 bg-white/5 hover:bg-white/10 text-xs font-semibold rounded-lg text-primary"
+                                  onClick={() => setFormData({ ...formData, targetUrls: [...formData.targetUrls, ""] })}
+                                >
+                                  <PlusCircle className="w-3.5 h-3.5 mr-2" /> Add Target URL
+                                </Button>
                             </div>
                           </div>
+
 
                           <div className="space-y-4">
                             <div className="space-y-1.5">
@@ -635,19 +749,15 @@ const Dashboard = () => {
             )}
 
             {activeSection === "Settings" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="card-premium p-6 space-y-4">
-                  <h3 className="font-bold text-lg flex items-center gap-2"><User className="w-5 h-5 text-primary" /> User Profile</h3>
-                  <div className="space-y-2"><label className="text-xs text-muted-foreground uppercase tracking-wider">Email</label><Input value={user.email || ''} readOnly className="bg-black/50 font-mono border-white/10" /></div>
-                  <div className="space-y-2"><label className="text-xs text-muted-foreground uppercase tracking-wider">Role</label><Input value="Security Administrator" readOnly className="bg-black/50 font-mono border-white/10" /></div>
+              <motion.div key="settings-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="card-premium p-6 space-y-4">
+                    <h3 className="font-bold text-lg flex items-center gap-2"><User className="w-5 h-5 text-primary" /> User Profile</h3>
+                    <div className="space-y-2"><label className="text-xs text-muted-foreground uppercase tracking-wider">Email</label><Input value={user.email || ''} readOnly className="bg-black/50 font-mono border-white/10" /></div>
+                    <div className="space-y-2"><label className="text-xs text-muted-foreground uppercase tracking-wider">Role</label><Input value="Security Administrator" readOnly className="bg-black/50 font-mono border-white/10" /></div>
+                  </div>
                 </div>
-                <div className="card-premium p-6 space-y-4">
-                  <h3 className="font-bold text-lg flex items-center gap-2"><Database className="w-5 h-5 text-primary" /> System Configuration</h3>
-                  <div className="space-y-2"><label className="text-xs text-muted-foreground uppercase tracking-wider">API Endpoint</label><Input value={Config.API_URL} readOnly className="bg-black/50 font-mono border-primary/20" /></div>
-                  <div className="space-y-2"><label className="text-xs text-muted-foreground uppercase tracking-wider">Chatbot Endpoint</label><Input value={Config.CHATBOT_URL} readOnly className="bg-black/50 font-mono border-white/10" /></div>
-                  <Button className="w-full btn-cyber rounded-xl" onClick={() => window.location.reload()}>Reload Application</Button>
-                </div>
-              </div>
+              </motion.div>
             )}
 
             {activeSection === "Tools" && (

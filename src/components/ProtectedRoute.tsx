@@ -1,15 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { LoadingScreen } from "./LoadingScreen";
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const { session, loading } = useAuth();
 
     if (loading) {
-        return (
-            <div className="flex bg-zinc-950 h-screen w-screen items-center justify-center">
-                <div className="text-white">Loading...</div>
-            </div>
-        );
+        return <LoadingScreen />;
     }
 
     if (!session) {

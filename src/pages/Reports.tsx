@@ -49,7 +49,7 @@ const ReportsContent = () => {
     const { user, loading } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [selectedScan, setSelectedScan] = useState<any>(null);
     const [scanResult, setScanResult] = useState<any>(null);
 
@@ -77,13 +77,13 @@ const ReportsContent = () => {
 
     return (
         <div className="min-h-screen flex w-full bg-background">
-            {sidebarOpen && <AppSidebar />}
+            <AppSidebar mobileOpen={sidebarOpen} setMobileOpen={setSidebarOpen} />
 
             <main className="flex-1 flex flex-col h-screen overflow-hidden bg-background">
                 {/* Header */}
                 <div className="h-16 border-b bg-background/95 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-muted rounded-md">
+                        <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-muted rounded-md lg:hidden">
                             <Menu className="w-5 h-5" />
                         </button>
                         <div className="flex items-center gap-3">

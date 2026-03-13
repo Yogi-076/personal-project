@@ -78,7 +78,7 @@ export const CyberGrid = () => {
 
     const initParticles = () => {
       particles = [];
-      const particleCount = Math.floor((canvas.width * canvas.height) / 12000); // Slightly denser
+      const particleCount = Math.floor((canvas.width * canvas.height) / 25000); // Reduced density for performance
       for (let i = 0; i < particleCount; i++) {
         particles.push(new Particle());
       }
@@ -92,59 +92,8 @@ export const CyberGrid = () => {
     };
 
     const drawConnections = () => {
-      if (!ctx) return;
-
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (distance < 150) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(139, 92, 246, ${1 - distance / 150})`;
-            ctx.lineWidth = 0.5;
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.stroke();
-
-            // Triangulation: Check for a third particle to form a triangle
-            for (let k = j + 1; k < particles.length; k++) {
-              const dx2 = particles[j].x - particles[k].x;
-              const dy2 = particles[j].y - particles[k].y;
-              const distance2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-
-              const dx3 = particles[i].x - particles[k].x;
-              const dy3 = particles[i].y - particles[k].y;
-              const distance3 = Math.sqrt(dx3 * dx3 + dy3 * dy3);
-
-              if (distance2 < 150 && distance3 < 150) {
-                ctx.beginPath();
-                ctx.fillStyle = `rgba(139, 92, 246, 0.03)`; // Very subtle fill
-                ctx.moveTo(particles[i].x, particles[i].y);
-                ctx.lineTo(particles[j].x, particles[j].y);
-                ctx.lineTo(particles[k].x, particles[k].y);
-                ctx.closePath();
-                ctx.fill();
-              }
-            }
-          }
-        }
-
-        // Connect particles to mouse
-        const dx = particles[i].x - mouse.x;
-        const dy = particles[i].y - mouse.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < 250) {
-          ctx.beginPath();
-          ctx.strokeStyle = `rgba(236, 72, 153, ${1 - distance / 250})`; // Pink connection for mouse
-          ctx.lineWidth = 0.8;
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(mouse.x, mouse.y);
-          ctx.stroke();
-        }
-      }
+      // Logic removed for extreme performance optimization.
+      // Background remains as a clean, moving particle field.
     };
 
     const animate = () => {

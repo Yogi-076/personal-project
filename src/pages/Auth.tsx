@@ -8,7 +8,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MatrixRain } from "@/components/MatrixRain";
 import { SecurityHUD } from "@/components/SecurityHUD";
-import { Eye, EyeOff, Lock, Shield, ShieldAlert, ShieldCheck, User as UserIcon, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Shield, ShieldAlert, ShieldCheck, User as UserIcon, Mail, Laptop } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { validateEmail, validateUsername, sanitizeString } from "@/lib/validation";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -174,42 +177,62 @@ const Auth = () => {
           onMouseLeave={handleMouseLeave}
         >
           {/* Glass Login Card */}
-          <div
+          <motion.div
             ref={cardRef}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             className="transition-transform duration-100 ease-out preserve-3d"
           >
-            <Card className="border border-white/10 shadow-[0_0_50px_-12px_rgba(14,165,233,0.25)] bg-slate-950/60 backdrop-blur-xl relative overflow-hidden group">
+            <Card className="border border-white/10 shadow-[0_0_80px_-20px_rgba(14,165,233,0.3)] bg-slate-950/40 backdrop-blur-3xl relative overflow-hidden group rounded-3xl">
               {/* Card Top Highlight */}
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-40" />
 
-              <CardHeader className="text-center space-y-2 pb-2">
-                <div className="mx-auto w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-2 border border-blue-500/20 group-hover:border-blue-500/50 transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-                <CardTitle className="text-3xl font-bold tracking-tight text-white">
-                  Welcome Back
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-base">
-                  Authenticate to access the <span className="text-blue-400">secure mainframe</span>.
-                </CardDescription>
+              <CardHeader className="text-center space-y-3 pb-4">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                  className="mx-auto w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-2 border border-blue-500/20 group-hover:border-blue-500/50 transition-colors shadow-inner"
+                >
+                  <Shield className="h-7 w-7 text-blue-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <CardTitle className="text-3xl font-black tracking-tighter text-white uppercase">
+                    {isLogin ? "IDENTITY AUTH" : "CREATE OPERATOR"}
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-[10px] font-mono uppercase tracking-[0.2em] mt-2">
+                    {isLogin ? "Access the secure mainframe" : "Register new security credentials"}
+                  </CardDescription>
+                </motion.div>
               </CardHeader>
-              <CardContent className="pt-6">
-                <div className="w-full space-y-4">
-                  <div className="flex border-b border-slate-700/50 mb-4">
+
+              <CardContent className="pt-2">
+                <div className="w-full space-y-6">
+                  <div className="flex border-b border-white/5 mb-6">
                     <button
                       onClick={() => setIsLogin(true)}
-                      className={`flex-1 pb-2 text-sm font-medium transition-colors border-b-2 ${isLogin ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                      className={cn(
+                        "flex-1 pb-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 relative",
+                        isLogin ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                      )}
                     >
                       Login
+                      {isLogin && <motion.div layoutId="auth-tab" className="absolute bottom-[-2px] left-0 right-0 h-0.5 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
                     </button>
                     <button
                       onClick={() => setIsLogin(false)}
-                      className={`flex-1 pb-2 text-sm font-medium transition-colors border-b-2 ${!isLogin ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                      className={cn(
+                        "flex-1 pb-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 relative",
+                        !isLogin ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                      )}
                     >
                       Sign Up
+                      {!isLogin && <motion.div layoutId="auth-tab" className="absolute bottom-[-2px] left-0 right-0 h-0.5 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
                     </button>
                   </div>
 
@@ -218,148 +241,154 @@ const Auth = () => {
                     if (!email || !password) return toast({ title: "Error", description: "Email and password are required", variant: "destructive" });
 
                     try {
+                      const cleanEmail = sanitizeString(email, 100);
+                      const cleanUsername = sanitizeString(username, 30);
+
+                      if (!validateEmail(cleanEmail)) {
+                        return toast({ title: "Invalid Email", description: "Please enter a valid email endpoint", variant: "destructive" });
+                      }
+
                       if (isLogin) {
-                        await signIn(email, password);
+                        await signIn(cleanEmail, password);
                         toast({ title: "Success", description: "Logged in successfully" });
                         navigate("/dashboard");
                       } else {
-                        await signUp(email, password, username || email.split('@')[0]);
+                        if (username && !validateUsername(cleanUsername)) {
+                          return toast({ title: "Invalid Alias", description: "Username must be 3-30 alphanumeric characters", variant: "destructive" });
+                        }
+                        if (passwordStrength.score < 3) {
+                          return toast({ title: "Weak Security Key", description: "Please improve your password strength", variant: "destructive" });
+                        }
+                        await signUp(cleanEmail, password, cleanUsername || cleanEmail.split('@')[0]);
                         toast({ title: "Success", description: "Account created successfully" });
                         navigate("/dashboard");
                       }
                     } catch (err: any) {
                       toast({ title: "Authentication Failed", description: err.message || "An error occurred", variant: "destructive" });
                     }
-                  }} className="space-y-3">
-                    {!isLogin && (
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-400 px-1">Username (Optional)</label>
-                        <input
-                          type="text"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          placeholder="Your unique handle"
-                          className="w-full bg-slate-900/60 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        />
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 px-1">Email Address</label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="operator@mainframe.com"
-                        className="w-full bg-slate-900/60 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        autoComplete="email"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-slate-400 px-1">Password</label>
-                      <div className="relative group/pass">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          value={password}
-                          onChange={onPasswordChange}
-                          placeholder="••••••••••••"
-                          className="w-full bg-slate-900/60 border border-slate-700 rounded-md px-3 py-2 pr-10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all border-slate-800 hover:border-slate-600"
-                          autoComplete={isLogin ? "current-password" : "new-password"}
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors focus:outline-none"
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      {!isLogin && password.length > 0 && (
-                        <div className="mt-2 space-y-1.5 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                          <div className="flex justify-between items-center text-[10px] font-mono tracking-wider mb-1">
-                            <span className={
-                              passwordStrength.score <= 2 ? "text-red-400" :
-                                passwordStrength.score <= 3 ? "text-amber-400" :
-                                  "text-green-400"
-                            }>
-                              STRENGTH: {passwordStrength.feedback.toUpperCase()}
-                            </span>
-                            <span className="text-slate-500">{passwordStrength.score}/5</span>
-                          </div>
-                          <div className="flex gap-1 h-1">
-                            {[1, 2, 3, 4, 5].map((level) => (
-                              <div
-                                key={level}
-                                className={`h-full flex-1 rounded-full transition-all duration-500 ${level <= passwordStrength.score
-                                    ? passwordStrength.score <= 2 ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                                      passwordStrength.score <= 3 ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
-                                        "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"
-                                    : "bg-slate-800"
-                                  }`}
+                  }} className="space-y-4">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={isLogin ? 'login-fields' : 'signup-fields'}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-4"
+                      >
+                        {!isLogin && (
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">Operator Alias</label>
+                            <div className="relative group/input">
+                              <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 group-focus-within/input:text-blue-500 transition-colors" />
+                              <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="Your unique handle"
+                                className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all hover:bg-black/60"
                               />
-                            ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">Email Endpoint</label>
+                          <div className="relative group/input">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 group-focus-within/input:text-blue-500 transition-colors" />
+                            <input
+                              type="email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              placeholder="operator@mainframe.com"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all hover:bg-black/60"
+                              autoComplete="email"
+                              required
+                            />
                           </div>
                         </div>
-                      )}
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={!isLogin && passwordStrength.score < 3}
-                      className={`w-full font-medium py-2 rounded-md transition-all mt-2 flex items-center justify-center gap-2 ${!isLogin && passwordStrength.score < 3
-                          ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
-                          : "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_rgba(37,99,235,0.6)] active:scale-[0.98]"
-                        }`}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">Security Key</label>
+                          <div className="relative group/pass">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600 group-focus-within/pass:text-blue-500 transition-colors" />
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              value={password}
+                              onChange={onPasswordChange}
+                              placeholder="••••••••••••"
+                              className="w-full bg-black/40 border border-white/5 rounded-xl pl-10 pr-12 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all hover:bg-black/60"
+                              autoComplete={isLogin ? "current-password" : "new-password"}
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-blue-400 transition-colors focus:outline-none p-1 rounded-lg"
+                            >
+                              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                          {!isLogin && password.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              className="mt-3 space-y-2 px-1"
+                            >
+                              <div className="flex justify-between items-center text-[9px] font-black tracking-[0.2em] mb-1">
+                                <span className={cn(
+                                  passwordStrength.score <= 2 ? "text-red-500" :
+                                    passwordStrength.score <= 3 ? "text-amber-500" : "text-emerald-500"
+                                )}>
+                                  STRENGTH: {passwordStrength.feedback.toUpperCase()}
+                                </span>
+                                <span className="text-slate-500">{passwordStrength.score}/5</span>
+                              </div>
+                              <div className="flex gap-1.5 h-1">
+                                {[1, 2, 3, 4, 5].map((level) => (
+                                  <div
+                                    key={level}
+                                    className={cn(
+                                      "h-full flex-1 rounded-full transition-all duration-700",
+                                      level <= passwordStrength.score
+                                        ? passwordStrength.score <= 2 ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]" :
+                                          passwordStrength.score <= 3 ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" :
+                                            "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                                        : "bg-white/5"
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      {!isLogin && passwordStrength.score < 3 && <Shield size={16} />}
-                      {isLogin ? "Initialize Uplink" : "Create Operator Profile"}
-                    </button>
+                      <button
+                        type="submit"
+                        disabled={!isLogin && passwordStrength.score < 3}
+                        className={cn(
+                          "w-full h-11 font-black text-[11px] tracking-[0.2em] rounded-xl transition-all mt-4 flex items-center justify-center gap-2 shadow-2xl uppercase",
+                          !isLogin && passwordStrength.score < 3
+                            ? "bg-slate-900 text-slate-700 cursor-not-allowed border border-white/5"
+                            : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 active:bg-blue-700 border border-blue-400/20"
+                        )}
+                      >
+                        {!isLogin && passwordStrength.score < 3 && <ShieldAlert size={16} />}
+                        {isLogin ? "INITIALIZE UPLINK" : "DEPLOY OPERATOR"}
+                      </button>
+                    </motion.div>
                   </form>
                 </div>
-
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-700" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-slate-950 px-2 text-slate-500">Security Override</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault(); // Prevent accidental form submission
-                    console.log("Initiating Developer Override...");
-
-                    toast({
-                      title: "Bypassing protocols...",
-                      description: "Initiating emergency developer access override.",
-                      className: "bg-amber-950 text-amber-500 border-amber-900"
-                    });
-
-                    // Simulate processing delay
-                    await new Promise(resolve => setTimeout(resolve, 800));
-
-                    if (!session) {
-                      console.log("No session found. Executing demoLogin()...");
-                      await demoLogin();
-                    } else {
-                      console.log("Session already exists:", session.user.email);
-                      navigate("/dashboard");
-                    }
-                  }}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs py-2 rounded border border-slate-700 transition-colors flex items-center justify-center gap-2 group cursor-pointer"
-                  id="demo-login-btn"
-                >
-                  <span className="h-2 w-2 rounded-full bg-amber-500 group-hover:animate-ping" />
-                  INITIATE_DEV_ACCESS_PROTOCOL
-                </button>
               </CardContent>
 
               {/* Card Footer Decoration */}
-              <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+              <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
             </Card>
-          </div>
+          </motion.div>
 
           <div className="text-center text-xs text-slate-500 font-mono">
             SECURE CONNECTION • 256-BIT ENCRYPTION • <span className="text-green-500">SYSTEM ONLINE</span>

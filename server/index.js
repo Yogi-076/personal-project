@@ -64,18 +64,35 @@ app.options('*', cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-// Pre-existing route files (unchanged)
+// ── Static file servers (must be BEFORE projectRoutes to intercept download requests) ─
+// Serve uploaded evidence files for download
+app.use('/api/projects/:projectId/evidence', (req, res, next) => {
+    // Only serve if there's an actual filename in the path (not the list endpoint)
+    if (!req.path || req.path === '/' || req.path === '') return next();
+    const evidenceDir = req.params.projectId === 'shared'
+        ? path.join(__dirname, 'data', 'shared-evidence')
+        : path.join(__dirname, 'data', 'projects', req.params.projectId, 'evidence');
+    express.static(evidenceDir, {
+        setHeaders: (res, filePath) => {
+            res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
+            res.setHeader('Access-Control-Allow-Origin', '*');
+        }
+    })(req, res, next);
+});
+
+// Serve generated project reports for download
+app.use('/api/projects/:projectId/reports', (req, res, next) => {
+    if (!req.path || req.path === '/' || req.path === '') return next();
+    express.static(
+        path.join(__dirname, 'data', 'projects', req.params.projectId, 'reports')
+    )(req, res, next);
+});
+
+// ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/admin', adminRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/reports', reportRoutes);
 
-// Serve generated project reports for download
-app.use('/api/projects/:projectId/reports', (req, res, next) => {
-    express.static(
-        path.join(__dirname, '..', 'data', 'projects', req.params.projectId, 'reports')
-    )(req, res, next);
-});
 
 // New route files (extracted from old monolithic index.js)
 app.use('/', authRoutes);

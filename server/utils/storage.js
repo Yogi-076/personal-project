@@ -287,13 +287,22 @@ class Storage {
         }
     }
 
-    async getAllScans() {
+    async getAllScans(userId) {
         let localScans = [];
         try {
             const localData = this._readLocal();
             // Filter out keys like 'users' that aren't actual scan objects
             localScans = Object.values(localData)
-                .filter(s => s && typeof s === 'object' && !Array.isArray(s) && s.id)
+                .filter(s => {
+                    if (!s || typeof s !== 'object' || Array.isArray(s) || !s.id) return false;
+                    // If a userId filter is given, only return matching scans.
+                    // Scans without a userId field are treated as 'anonymous' (legacy data).
+                    if (userId) {
+                        const scanOwner = s.userId || 'anonymous';
+                        return scanOwner === userId;
+                    }
+                    return true;
+                })
                 .map(s => ({
                     id: s.id,
                     target: s.target,
@@ -301,6 +310,7 @@ class Storage {
                     startedAt: s.startedAt,
                     summary: s.summary,
                     type: s.type,
+                    userId: s.userId || 'anonymous',
                     findingsCount: s.findings ? s.findings.length : 0
                 })).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
         } catch (e) { /* ignore */ }
@@ -384,7 +394,7 @@ class Storage {
 
     // --- VMT Snapshots (Local File System) ---
 
-    async saveSnapshot(projectId, name, data) {
+    async saveSnapshot(projectId, name, data, userId) {
         try {
             const SNAPSHOTS_DIR = path.join(DATA_DIR, 'snapshots');
             if (!fs.existsSync(SNAPSHOTS_DIR)) fs.mkdirSync(SNAPSHOTS_DIR, { recursive: true });
@@ -395,6 +405,7 @@ class Storage {
                 projectId,
                 name,
                 data,
+                userId: userId || 'anonymous',
                 createdAt: new Date().toISOString()
             };
 
@@ -407,7 +418,7 @@ class Storage {
         }
     }
 
-    async getSnapshots(projectId) {
+    async getSnapshots(projectId, userId) {
         try {
             const SNAPSHOTS_DIR = path.join(DATA_DIR, 'snapshots');
             if (!fs.existsSync(SNAPSHOTS_DIR)) return [];
@@ -419,7 +430,9 @@ class Storage {
                 try {
                     const content = fs.readFileSync(path.join(SNAPSHOTS_DIR, file), 'utf8');
                     const snap = JSON.parse(content);
-                    if (snap.projectId === projectId) {
+                    const snapOwner = snap.userId || 'anonymous';
+                    // Filter by projectId AND userId ownership
+                    if (snap.projectId === projectId && (!userId || snapOwner === userId)) {
                         snapshots.push({
                             id: snap.id,
                             name: snap.name,
