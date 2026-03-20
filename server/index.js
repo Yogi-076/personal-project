@@ -34,6 +34,7 @@ const toolsRoutes = require('./routes/tools');
 const aiRoutes = require('./routes/ai');
 const createVmtRouter = require('./routes/vmt');
 const payloadsRoutes = require('./routes/payloads');
+const { optionalAuth } = require('./middleware/saasMiddleware');
 
 // ── App + HTTP Server ─────────────────────────────────────────────────────────
 const app = express();
@@ -66,12 +67,34 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // ── Static file servers (must be BEFORE projectRoutes to intercept download requests) ─
 // Serve uploaded evidence files for download
-app.use('/api/projects/:projectId/evidence', (req, res, next) => {
+app.use('/api/projects/:projectId/evidence', optionalAuth, async (req, res, next) => {
     // Only serve if there's an actual filename in the path (not the list endpoint)
     if (!req.path || req.path === '/' || req.path === '') return next();
-    const evidenceDir = req.params.projectId === 'shared'
+
+    const { projectId } = req.params;
+
+    // ── Ownership Check ──
+    if (projectId !== 'shared') {
+        try {
+            const projectInfoPath = path.join(__dirname, 'data', 'projects', projectId, 'project_info.json');
+            if (fs.existsSync(projectInfoPath)) {
+                const info = JSON.parse(fs.readFileSync(projectInfoPath, 'utf8'));
+                const projectOwner = info.userId || 'anonymous';
+                if (projectOwner !== req.userId) {
+                    return res.status(403).json({ error: 'Access denied to this project\'s evidence' });
+                }
+            } else if (projectId !== 'manual-project-default') {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+        } catch (e) {
+            return res.status(500).json({ error: 'Storage error verify ownership' });
+        }
+    }
+
+    const evidenceDir = projectId === 'shared'
         ? path.join(__dirname, 'data', 'shared-evidence')
-        : path.join(__dirname, 'data', 'projects', req.params.projectId, 'evidence');
+        : path.join(__dirname, 'data', 'projects', projectId, 'evidence');
+
     express.static(evidenceDir, {
         setHeaders: (res, filePath) => {
             res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
@@ -81,10 +104,29 @@ app.use('/api/projects/:projectId/evidence', (req, res, next) => {
 });
 
 // Serve generated project reports for download
-app.use('/api/projects/:projectId/reports', (req, res, next) => {
+app.use('/api/projects/:projectId/reports', optionalAuth, async (req, res, next) => {
     if (!req.path || req.path === '/' || req.path === '') return next();
+
+    const { projectId } = req.params;
+
+    // ── Ownership Check ──
+    try {
+        const projectInfoPath = path.join(__dirname, 'data', 'projects', projectId, 'project_info.json');
+        if (fs.existsSync(projectInfoPath)) {
+            const info = JSON.parse(fs.readFileSync(projectInfoPath, 'utf8'));
+            const projectOwner = info.userId || 'anonymous';
+            if (projectOwner !== req.userId) {
+                return res.status(403).json({ error: 'Access denied to this project\'s reports' });
+            }
+        } else if (projectId !== 'manual-project-default') {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+    } catch (e) {
+        return res.status(500).json({ error: 'Storage error verify ownership' });
+    }
+
     express.static(
-        path.join(__dirname, 'data', 'projects', req.params.projectId, 'reports')
+        path.join(__dirname, 'data', 'projects', projectId, 'reports')
     )(req, res, next);
 });
 
