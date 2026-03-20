@@ -90,9 +90,13 @@ const Dashboard = () => {
         }
       };
 
+      const token = localStorage.getItem('vmt_token');
       const res = await fetch(`${Config.API_URL}/api/projects`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(payload)
       });
 

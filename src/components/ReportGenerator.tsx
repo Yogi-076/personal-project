@@ -67,9 +67,13 @@ export function ReportGenerator({ projectId, projectTitle, currentVersion = 0, o
         try {
             const activeSections = Object.entries(sections).filter(([, v]) => v).map(([k]) => k);
 
+            const token = localStorage.getItem('vmt_token');
             const res = await fetch(`${Config.API_URL}/api/reports/generate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({
                     projectId,
                     format: 'pdf',

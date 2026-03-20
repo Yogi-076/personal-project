@@ -52,9 +52,13 @@ export function ManualFindingModal({ projectId, open, onOpenChange, onSuccess }:
         }
         setIsSubmitting(true);
         try {
+            const token = localStorage.getItem('vmt_token');
             const res = await fetch(`${Config.API_URL}/api/projects/${projectId}/findings`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(form),
             });
 

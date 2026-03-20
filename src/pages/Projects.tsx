@@ -75,7 +75,10 @@ export default function Projects() {
 
     const fetchProjects = async () => {
         try {
-            const res = await fetch(`${Config.API_URL}/api/projects`);
+            const token = localStorage.getItem('vmt_token');
+            const res = await fetch(`${Config.API_URL}/api/projects`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (res.ok) {
                 const data = await res.json();
                 setProjects(data);
@@ -143,9 +146,13 @@ export default function Projects() {
                 }
             };
 
+            const token = localStorage.getItem('vmt_token');
             const res = await fetch(`${Config.API_URL}/api/projects`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(payload)
             });
 
@@ -189,8 +196,10 @@ export default function Projects() {
 
         setDeletingId(projectId);
         try {
+            const token = localStorage.getItem('vmt_token');
             const res = await fetch(`${Config.API_URL}/api/projects/${projectId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
 
             if (res.ok) {

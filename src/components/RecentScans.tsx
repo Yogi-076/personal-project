@@ -33,7 +33,10 @@ export const RecentScans = ({ onSelect }: RecentScansProps) => {
 
     const fetchHistory = async () => {
         try {
-            const res = await fetch(`${Config.API_URL}/api/scan/history`);
+            const token = localStorage.getItem('vmt_token');
+            const res = await fetch(`${Config.API_URL}/api/scan/history`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (res.ok) {
                 const data = await res.json();
                 if (Array.isArray(data)) {
@@ -64,7 +67,11 @@ export const RecentScans = ({ onSelect }: RecentScansProps) => {
         if (!confirm("Are you sure you want to delete this scan log?")) return;
 
         try {
-            const res = await fetch(`${Config.API_URL}/api/scan/${scanId}`, { method: 'DELETE' });
+            const token = localStorage.getItem('vmt_token');
+            const res = await fetch(`${Config.API_URL}/api/scan/${scanId}`, { 
+                method: 'DELETE',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (res.ok) {
                 setHistory(prev => prev.filter(s => s.id !== scanId));
             } else {
@@ -104,7 +111,11 @@ export const RecentScans = ({ onSelect }: RecentScansProps) => {
                         e.stopPropagation();
                         if (!confirm("Are you sure you want to clear the entire activity log?")) return;
                         try {
-                            await fetch(`${Config.API_URL}/api/scan/history`, { method: 'DELETE' });
+                            const token = localStorage.getItem('vmt_token');
+                            await fetch(`${Config.API_URL}/api/scan/history`, { 
+                                method: 'DELETE',
+                                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                            });
                             setHistory([]);
                         } catch (e) { console.error(e); }
                     }} className="p-2 hover:bg-destructive/10 rounded-lg cursor-pointer transition-colors group/delete" title="Clear History">

@@ -60,8 +60,10 @@ export function EvidenceUploadModal({ projectId, open, onOpenChange, onSuccess }
             const formData = new FormData();
             selectedFiles.forEach(f => formData.append("files", f));
 
+            const token = localStorage.getItem('vmt_token');
             const res = await fetch(`${Config.API_URL}/api/projects/${projectId}/evidence`, {
                 method: "POST",
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                 body: formData,
             });
 

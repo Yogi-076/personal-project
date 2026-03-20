@@ -55,7 +55,10 @@ export default function ProjectDetails() {
     const refreshProject = useCallback(async () => {
         if (!id) return;
         try {
-            const res = await fetch(`${Config.API_URL}/api/projects/${id}`);
+            const token = localStorage.getItem('vmt_token');
+            const res = await fetch(`${Config.API_URL}/api/projects/${id}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (res.ok) {
                 const data = await res.json();
                 setProject(data);
@@ -67,7 +70,10 @@ export default function ProjectDetails() {
 
     const fetchProject = useCallback(async () => {
         try {
-            const res = await fetch(`${Config.API_URL}/api/projects/${id}`);
+            const token = localStorage.getItem('vmt_token');
+            const res = await fetch(`${Config.API_URL}/api/projects/${id}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (res.ok) {
                 setProject(await res.json());
             } else {
@@ -187,8 +193,10 @@ export default function ProjectDetails() {
                             onClick={async () => {
                                 if (window.confirm("Are you absolute sure you want to delete this project? This will permanently erase all scans, reports, and findings associated with it. This action cannot be undone.")) {
                                     try {
+                                        const token = localStorage.getItem('vmt_token');
                                         const res = await fetch(`${Config.API_URL}/api/projects/${project.id}`, {
-                                            method: 'DELETE'
+                                            method: 'DELETE',
+                                            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                                         });
                                         if (res.ok) {
                                             toast({ title: "Project Deleted", description: "All project data has been purged." });
@@ -362,7 +370,10 @@ export default function ProjectDetails() {
                                                 onClick={async (e) => {
                                                     e.stopPropagation();
                                                     try {
-                                                        const response = await fetch(`${Config.API_URL}/api/reports/raw/${id}/${scan.id}`);
+                                                        const token = localStorage.getItem('vmt_token');
+                                                        const response = await fetch(`${Config.API_URL}/api/reports/raw/${id}/${scan.id}`, {
+                                                            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                                                        });
                                                         if (!response.ok) throw new Error('Raw scan results not available');
                                                         
                                                         const blob = await response.blob();
@@ -495,8 +506,12 @@ export default function ProjectDetails() {
                                 const handleDeleteEvidence = async () => {
                                     if (!window.confirm(`Are you sure you want to delete "${ev.filename}"?`)) return;
                                     try {
+                                        const token = localStorage.getItem('vmt_token');
                                         const url = `${Config.API_URL}/api/projects/${project.id}/evidence/${encodeURIComponent(ev.filename)}`;
-                                        const resp = await fetch(url, { method: 'DELETE' });
+                                        const resp = await fetch(url, { 
+                                            method: 'DELETE',
+                                            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                                        });
                                         if (!resp.ok) throw new Error('Failed to delete file');
                                         
                                         toast({ title: "Success", description: "Evidence deleted successfully." });
