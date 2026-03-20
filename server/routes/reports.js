@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit'); // Wait to implement full pdfkit-table next iteration for simplicity
+const { optionalAuth } = require('../middleware/saasMiddleware');
 
 // Assume DATA_DIR is passed or relative
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -33,7 +34,7 @@ const readJsonSafe = (filePath) => {
 // POST /api/reports/generate
 // Generates a VAPT report for a specific project
 // ═══════════════════════════════════════════
-router.post('/generate', async (req, res) => {
+router.post('/generate', optionalAuth, async (req, res) => {
     const { projectId, format = 'pdf', sections = ['executive', 'technical', 'findings'], reportType = 'combined', confidentiality = 'confidential' } = req.body;
 
     if (!projectId) {
@@ -51,6 +52,13 @@ router.post('/generate', async (req, res) => {
 
     const projectInfo = readJsonSafe(infoPath);
     ensureDir(reportsDir);
+
+    // ── User Isolation: Only project owner can generate their report ──
+    const projectOwner = projectInfo.userId || 'anonymous';
+    const requester = req.userId || 'anonymous';
+    if (projectOwner !== requester) {
+        return res.status(403).json({ error: 'Access denied: You do not own this project' });
+    }
 
     // 1. Get report version (increment on every generation)
     const reportVersion = (projectInfo.reportVersion || 0) + 1;
@@ -479,10 +487,22 @@ ${htmlBody}
 // GET /api/reports/raw/:projectId/:scanId
 // Downloads the raw JSON scan results
 // ═══════════════════════════════════════════
-router.get('/raw/:projectId/:scanId', (req, res) => {
+router.get('/raw/:projectId/:scanId', optionalAuth, (req, res) => {
     try {
         const { projectId, scanId } = req.params;
         const projectDir = path.join(DATA_DIR, 'projects', projectId);
+        const infoFile = path.join(projectDir, 'project_info.json');
+
+        // ── User Isolation: Enforce ownership ──
+        if (fs.existsSync(infoFile)) {
+            const pInfo = JSON.parse(fs.readFileSync(infoFile, 'utf8'));
+            const pOwner = pInfo.userId || 'anonymous';
+            const pRequester = req.userId || 'anonymous';
+            if (pOwner !== pRequester) {
+                return res.status(403).json({ error: 'Access denied: You do not own this project' });
+            }
+        }
+
         const scanResultPath = path.join(projectDir, 'scans', scanId, 'results.json');
 
         if (!fs.existsSync(scanResultPath)) {

@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const storage = require('../utils/storage');
 const { validateEmail, validateUrl, sanitizeString } = require('../utils/validation');
+const { optionalAuth } = require('../middleware/saasMiddleware');
 
 // The base directory for all projects
 const PROJECTS_DIR = path.join(__dirname, '..', 'data', 'projects');
@@ -40,6 +41,18 @@ const readJsonSafe = (filePath) => {
     try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; }
 };
 
+/**
+ * Helper: Check if the requesting user is the owner of a project.
+ * Legacy projects (no userId field) are treated as 'anonymous'.
+ * Returns true if access should be granted.
+ */
+const isProjectOwner = (projectInfo, reqUserId) => {
+    const projectOwner = projectInfo.userId || 'anonymous';
+    const requester = reqUserId || 'anonymous';
+    // Allow access if both are anonymous, or the user IDs match
+    return projectOwner === requester;
+};
+
 // ── Multer for evidence uploads (optional dependency) ────────────────────────
 let multer;
 try { multer = require('multer'); } catch (e) {
@@ -69,7 +82,7 @@ const uploadMiddleware = multer && evidenceStorage
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/projects — Create New Project
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', optionalAuth, (req, res) => {
     try {
         const { title, description, companyName, targetUrls, credentials, startDate, endDate, testerName, testerEmail, engagementType } = req.body;
 
@@ -106,6 +119,8 @@ router.post('/', (req, res) => {
 
         const projectInfo = {
             id: projectId,
+            // ── User Isolation: Store the owner's userId ──
+            userId: req.userId || 'anonymous',
             title: cleanTitle,
             description: sanitizeString(description, 2000),
             companyName: cleanCompanyName,
@@ -139,18 +154,23 @@ router.post('/', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/projects — View All Projects
+// GET /api/projects — View All Projects (filtered by current user)
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', optionalAuth, (req, res) => {
     try {
         const projects = [];
         if (!fs.existsSync(PROJECTS_DIR)) return res.json([]);
 
+        const requester = req.userId || 'anonymous';
         const dirs = fs.readdirSync(PROJECTS_DIR);
         for (const dir of dirs) {
             const infoPath = path.join(PROJECTS_DIR, dir, 'project_info.json');
             if (fs.existsSync(infoPath)) {
                 const info = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
+
+                // ── User Isolation: Only return projects owned by this user ──
+                const projectOwner = info.userId || 'anonymous';
+                if (projectOwner !== requester) continue;
 
                 const scansDir = path.join(PROJECTS_DIR, dir, 'scans');
                 const scansCount = fs.existsSync(scansDir) ? fs.readdirSync(scansDir).length : 0;
@@ -178,7 +198,7 @@ router.get('/', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/projects/:id — Get Specific Project Details
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/:id', (req, res) => {
+router.get('/:id', optionalAuth, (req, res) => {
     try {
         const { id } = req.params;
         const projectPath = getProjectPath(id);
@@ -189,6 +209,11 @@ router.get('/:id', (req, res) => {
         }
 
         const projectInfo = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
+
+        // ── User Isolation: Enforce ownership ──
+        if (!isProjectOwner(projectInfo, req.userId)) {
+            return res.status(403).json({ error: 'Access denied: You do not own this project' });
+        }
 
         // Load scans history
         const scans = [];
@@ -243,12 +268,16 @@ router.get('/:id', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/projects/:id — Update Project Settings
 // ─────────────────────────────────────────────────────────────────────────────
-router.patch('/:id', (req, res) => {
+router.patch('/:id', optionalAuth, (req, res) => {
     try {
         const { id } = req.params;
         const infoPath = path.join(getProjectPath(id), 'project_info.json');
         if (!fs.existsSync(infoPath)) return res.status(404).json({ error: 'Project not found' });
         const projectInfo = readJsonSafe(infoPath);
+        // ── User Isolation: Enforce ownership ──
+        if (!isProjectOwner(projectInfo, req.userId)) {
+            return res.status(403).json({ error: 'Access denied: You do not own this project' });
+        }
         const allowed = ['title', 'description', 'companyName', 'targetUrls', 'startDate', 'endDate', 'testerName', 'testerEmail', 'engagementType', 'status'];
         allowed.forEach(key => { if (req.body[key] !== undefined) projectInfo[key] = req.body[key]; });
         projectInfo.updatedAt = new Date().toISOString();
@@ -262,13 +291,20 @@ router.patch('/:id', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/projects/:id — Delete Entire Project
 // ─────────────────────────────────────────────────────────────────────────────
-router.delete('/:id', (req, res) => {
+router.delete('/:id', optionalAuth, (req, res) => {
     try {
         const { id } = req.params;
         const projectPath = getProjectPath(id);
 
         if (!fs.existsSync(projectPath)) {
             return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // ── User Isolation: Enforce ownership before deleting ──
+        const infoPath = path.join(projectPath, 'project_info.json');
+        const projectInfo = readJsonSafe(infoPath);
+        if (projectInfo && !isProjectOwner(projectInfo, req.userId)) {
+            return res.status(403).json({ error: 'Access denied: You do not own this project' });
         }
 
         // Recursively delete the project directory
@@ -285,12 +321,16 @@ router.delete('/:id', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/projects/:id/findings — Add Manual Finding
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/:id/findings', (req, res) => {
+router.post('/:id/findings', optionalAuth, (req, res) => {
     try {
         const { id } = req.params;
         const projectPath = getProjectPath(id);
         const infoPath = path.join(projectPath, 'project_info.json');
         if (!fs.existsSync(infoPath)) return res.status(404).json({ error: 'Project not found' });
+        const projInfo = readJsonSafe(infoPath);
+        if (!isProjectOwner(projInfo, req.userId)) {
+            return res.status(403).json({ error: 'Access denied: You do not own this project' });
+        }
 
         const { title, severity, cvss, cweId, url, parameter, description, evidence, impact, recommendation, references } = req.body;
         if (!title || !severity) return res.status(400).json({ error: 'Title and severity are required' });
@@ -337,12 +377,17 @@ router.post('/:id/findings', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/projects/:id/findings — Get Manual Findings
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/:id/findings', (req, res) => {
+router.get('/:id/findings', optionalAuth, (req, res) => {
     try {
         const { id } = req.params;
         const projectPath = getProjectPath(id);
-        if (!fs.existsSync(path.join(projectPath, 'project_info.json'))) {
+        const projInfoPath = path.join(projectPath, 'project_info.json');
+        if (!fs.existsSync(projInfoPath)) {
             return res.status(404).json({ error: 'Project not found' });
+        }
+        const projInfo = readJsonSafe(projInfoPath);
+        if (!isProjectOwner(projInfo, req.userId)) {
+            return res.status(403).json({ error: 'Access denied: You do not own this project' });
         }
         const manualPath = path.join(projectPath, 'findings', 'manual.json');
         res.json(readJsonSafe(manualPath) || []);
@@ -354,9 +399,15 @@ router.get('/:id/findings', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/projects/:id/findings/:findingId — Delete Manual Finding
 // ─────────────────────────────────────────────────────────────────────────────
-router.delete('/:id/findings/:findingId', (req, res) => {
+router.delete('/:id/findings/:findingId', optionalAuth, (req, res) => {
     try {
         const { id, findingId } = req.params;
+        const delInfoPath = path.join(getProjectPath(id), 'project_info.json');
+        const delProjInfo = readJsonSafe(delInfoPath);
+        if (!delProjInfo) return res.status(404).json({ error: 'Project not found' });
+        if (!isProjectOwner(delProjInfo, req.userId)) {
+            return res.status(403).json({ error: 'Access denied: You do not own this project' });
+        }
         const manualPath = path.join(getProjectPath(id), 'findings', 'manual.json');
         let findings = readJsonSafe(manualPath) || [];
         const before = findings.length;
