@@ -379,38 +379,17 @@ export default function ProjectDetails() {
                                             <div className="text-[9px] font-mono text-muted-foreground/40">{new Date(scan.startedAt).toLocaleTimeString()}</div>
                                         </div>
                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    try {
-                                                        const token = localStorage.getItem('vmt_token');
-                                                        const response = await fetch(`${Config.API_URL}/api/reports/raw/${id}/${scan.id}`, {
-                                                            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                                                        });
-                                                        if (!response.ok) throw new Error('Raw scan results not available');
-                                                        
-                                                        const blob = await response.blob();
-                                                        const url = window.URL.createObjectURL(blob);
-                                                        const a = document.createElement('a');
-                                                        a.href = url;
-                                                        a.download = `raw_scan_${scan.id}.json`;
-                                                        document.body.appendChild(a);
-                                                        a.click();
-                                                        // Wait 60s instead of 1s to ensure "Save As" dialogs don't kill the blob
-                                                        setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-                                                        document.body.removeChild(a);
-                                                        toast({ title: "Downloaded", description: "Raw scan results saved locally." });
-                                                    } catch (err: any) {
-                                                        toast({ title: "Download Failed", description: err.message, variant: "destructive" });
-                                                    }
-                                                }}
-                                                className="h-8 w-8 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                                            <a
+                                                href={`${Config.API_URL}/api/reports/raw/${id}/${scan.id}?token=${localStorage.getItem('vmt_token')}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                download={`raw_scan_${scan.id}.json`}
+                                                className="h-8 w-8 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 flex items-center justify-center transition-all"
                                                 title="Download Raw JSON"
+                                                onClick={(e) => e.stopPropagation()}
                                             >
                                                 <Download className="w-4 h-4" />
-                                            </Button>
+                                            </a>
                                             <motion.button
                                                 whileHover={{ scale: 1.1 }}
                                                 whileTap={{ scale: 0.9 }}
