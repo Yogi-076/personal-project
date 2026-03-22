@@ -149,7 +149,7 @@ export default function ProjectDetails() {
                             <ArrowLeft className="w-4 h-4 mr-2" />
                             Back
                         </Button>
-                        <Badge variant="outline" className="text-[10px] opacity-20 hover:opacity-100 transition-opacity">BUILD-1.1.2-STABLE</Badge>
+                        <Badge variant="outline" className="text-[10px] opacity-20 hover:opacity-100 transition-opacity">BUILD-1.1.3-STABLE</Badge>
                     </div>
                 </div>
                 {/* ── BREADCRUMB ── */}
@@ -464,14 +464,13 @@ export default function ProjectDetails() {
                                                 <div className="text-[9px] font-mono text-muted-foreground/50">{new Date(rep.createdAt).toLocaleString()}</div>
                                             </div>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDownloadReport(rep.filename)}
-                                            className="opacity-0 group-hover:opacity-100 h-8 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all font-bold text-[10px]"
+                                        <a
+                                            href={`${Config.API_URL}/api/projects/${project.id}/reports/${encodeURIComponent(rep.filename)}?token=${localStorage.getItem('vmt_token')}`}
+                                            download={rep.filename}
+                                            className="opacity-0 group-hover:opacity-100 h-8 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all font-bold text-[10px] flex items-center justify-center"
                                         >
                                             <Download className="w-3.5 h-3.5 mr-1.5" /> DOWNLOAD
-                                        </Button>
+                                        </a>
                                     </div>
                                 )) : (
                                     <div className="p-16 text-center text-muted-foreground/30 flex flex-col items-center">
@@ -553,14 +552,13 @@ export default function ProjectDetails() {
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={handleDownloadEvidence}
-                                                className="h-8 px-4 bg-slate-700 text-white rounded-lg hover:bg-slate-600 shadow-lg transition-all font-bold text-[10px]"
+                                            <a
+                                                href={`${Config.API_URL}/api/projects/${project.id}/evidence/${encodeURIComponent(ev.filename)}?token=${localStorage.getItem('vmt_token')}`}
+                                                download={ev.filename}
+                                                className="h-8 px-4 bg-slate-700 text-white rounded-lg hover:bg-slate-600 shadow-lg transition-all font-bold text-[10px] flex items-center justify-center"
                                             >
                                                 <FileDown className="w-3.5 h-3.5 mr-1.5" /> DOWNLOAD
-                                            </Button>
+                                            </a>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"

@@ -222,10 +222,14 @@ export function ReportGenerator({ projectId, projectTitle, currentVersion = 0, o
                             {isGenerating ? "Compiling PDF..." : `Generate ${versionLabel}`}
                         </Button>
                     ) : (
-                        <Button onClick={handleDownload} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20">
+                        <a 
+                            href={downloadUrl} 
+                            download={generatedFilename || 'vapt-report.pdf'}
+                            className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 rounded-md flex items-center justify-center font-medium transition-colors"
+                        >
                             <Download className="w-4 h-4 mr-2" />
                             Download PDF Report
-                        </Button>
+                        </a>
                     )}
                 </DialogFooter>
             </DialogContent>
