@@ -125,8 +125,9 @@ export default function ProjectDetails() {
     const totalFindings = critical + high + med + low;
 
     const handleDownloadReport = (filename: string) => {
+        const token = localStorage.getItem('vmt_token');
         const a = document.createElement('a');
-        a.href = `${Config.API_URL}/api/projects/${project.id}/reports/${filename}`;
+        a.href = `${Config.API_URL}/api/projects/${project.id}/reports/${filename}${token ? `?token=${token}` : ''}`;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
@@ -494,7 +495,8 @@ export default function ProjectDetails() {
                                 const isImg = ['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext);
                                 const isDoc = ['pdf','doc','docx','txt','md','csv','json','xml'].includes(ext);
                                 const handleDownloadEvidence = () => {
-                                    const fileUrl = `${Config.API_URL}/api/projects/${project.id}/evidence/${encodeURIComponent(ev.filename)}`;
+                                    const token = localStorage.getItem('vmt_token');
+                                    const fileUrl = `${Config.API_URL}/api/projects/${project.id}/evidence/${encodeURIComponent(ev.filename)}${token ? `?token=${token}` : ''}`;
                                     const a = document.createElement('a');
                                     a.href = fileUrl;
                                     a.target = '_blank';

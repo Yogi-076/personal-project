@@ -169,8 +169,7 @@ router.get('/', optionalAuth, (req, res) => {
                 const info = JSON.parse(fs.readFileSync(infoPath, 'utf8'));
 
                 // ── User Isolation: Only return projects owned by this user ──
-                const projectOwner = info.userId || 'anonymous';
-                if (projectOwner !== requester) continue;
+                if (!isProjectOwner(info, requester)) continue;
 
                 const scansDir = path.join(PROJECTS_DIR, dir, 'scans');
                 const scansCount = fs.existsSync(scansDir) ? fs.readdirSync(scansDir).length : 0;

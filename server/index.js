@@ -80,7 +80,7 @@ app.use('/api/projects/:projectId/evidence', optionalAuth, async (req, res, next
             if (fs.existsSync(projectInfoPath)) {
                 const info = JSON.parse(fs.readFileSync(projectInfoPath, 'utf8'));
                 const projectOwner = info.userId || 'anonymous';
-                if (projectOwner !== req.userId) {
+                if (projectOwner !== req.userId && projectOwner !== 'anonymous') {
                     return res.status(403).json({ error: 'Access denied to this project\'s evidence' });
                 }
             } else if (projectId !== 'manual-project-default') {
@@ -115,7 +115,7 @@ app.use('/api/projects/:projectId/reports', optionalAuth, async (req, res, next)
         if (fs.existsSync(projectInfoPath)) {
             const info = JSON.parse(fs.readFileSync(projectInfoPath, 'utf8'));
             const projectOwner = info.userId || 'anonymous';
-            if (projectOwner !== req.userId) {
+            if (projectOwner !== req.userId && projectOwner !== 'anonymous') {
                 return res.status(403).json({ error: 'Access denied to this project\'s reports' });
             }
         } else if (projectId !== 'manual-project-default') {

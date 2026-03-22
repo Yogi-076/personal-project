@@ -7,13 +7,15 @@ const localAuth = require('../db/localAuth');
  * Use this on every data-access route to enable per-user data isolation.
  */
 const optionalAuth = (req, res, next) => {
+    let token = null;
+
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        req.userId = 'anonymous';
-        return next();
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (req.query && req.query.token) {
+        token = req.query.token;
     }
 
-    const token = authHeader.split(' ')[1];
     if (!token || token === 'mock-token') {
         req.userId = 'anonymous';
         return next();
