@@ -84,7 +84,10 @@ export function ReportGenerator({ projectId, projectTitle, currentVersion = 0, o
                 })
             });
 
-            if (!res.ok) throw new Error("Failed to generate report");
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to generate report");
+            }
 
             const data = await res.json();
             const url = `${Config.API_URL}/api/projects/${projectId}/reports/${data.filename}${token ? `?token=${token}` : ''}`;
@@ -98,7 +101,12 @@ export function ReportGenerator({ projectId, projectTitle, currentVersion = 0, o
             onSuccess();
 
         } catch (e: any) {
-            toast({ variant: "destructive", title: "Generation Error", description: e.message || "An error occurred." });
+            console.error("[ReportGenerator] Error:", e);
+            toast({ 
+                variant: "destructive", 
+                title: "Generation Error", 
+                description: e.message || "An error occurred while communicating with the reporting service." 
+            });
         } finally {
             setIsGenerating(false);
         }
