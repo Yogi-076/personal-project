@@ -106,7 +106,6 @@ app.use('/api/projects/:projectId/evidence', optionalAuth, async (req, res, next
 
 // Serve generated project reports for download
 app.use('/api/projects/:projectId/reports', optionalAuth, async (req, res, next) => {
-    console.log(`[Report Download] Request: ${req.url} for Project: ${req.params.projectId}`);
     if (!req.path || req.path === '/' || req.path === '') return next();
 
     const { projectId } = req.params;
@@ -114,7 +113,6 @@ app.use('/api/projects/:projectId/reports', optionalAuth, async (req, res, next)
     // ── Ownership Check ──
     try {
         const projectInfoPath = path.join(__dirname, 'data', 'projects', projectId, 'project_info.json');
-        console.log(`[Report Download] Checking ownership: ${projectInfoPath}`);
         if (fs.existsSync(projectInfoPath)) {
             const info = JSON.parse(fs.readFileSync(projectInfoPath, 'utf8'));
             const projectOwner = info.userId || 'anonymous';
@@ -128,11 +126,9 @@ app.use('/api/projects/:projectId/reports', optionalAuth, async (req, res, next)
         return res.status(500).json({ error: 'Storage error verify ownership' });
     }
 
-    // ── Delivery ──
     const filename = path.basename(req.path);
     const reportPath = path.join(__dirname, 'data', 'projects', projectId, 'reports', filename);
 
-    console.log(`[Report Download] Serving file: ${reportPath}`);
     if (fs.existsSync(reportPath)) {
         return res.download(reportPath, filename, (err) => {
             if (err) {
